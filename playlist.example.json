@@ -1,0 +1,28 @@
+{
+  "slides": [
+    {
+      "id": "slide-1",
+      "type": "image",
+      "src": "./content/assets/welcome.jpg",
+      "duration": 10,
+      "title": "Welcome to Our Office",
+      "subtitle": "Stay tuned for news & updates"
+    },
+    {
+      "id": "slide-2",
+      "type": "video",
+      "src": "./content/assets/promo.mp4",
+      "duration": 20,
+      "title": "Product Highlights"
+    },
+    {
+      "id": "slide-3",
+      "type": "web_url",
+      "src": "https://app.powerbi.com/view?r=EXAMPLE",
+      "duration": 30,
+      "title": "Live Metrics Dashboard",
+      "subtitle": "Powered by Power BI"
+    }
+  ]
+}
+
