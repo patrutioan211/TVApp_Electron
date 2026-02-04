@@ -10,10 +10,32 @@ const PLAYLIST_PATH = path.join(CONTENT_DIR, 'playlist.json');
 // 5 minutes in ms
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
-const git = simpleGit({
-  baseDir: CONTENT_DIR,
-  maxConcurrentProcesses: 1
-});
+let git = null;
+let contentDirExists = false;
+
+// Lazily determine if content dir exists and is a git repo
+async function ensureGit() {
+  if (git) return git;
+
+  try {
+    const stat = await fs.stat(CONTENT_DIR);
+    contentDirExists = stat.isDirectory();
+  } catch {
+    contentDirExists = false;
+  }
+
+  if (!contentDirExists) {
+    console.warn('Content directory does not exist at', CONTENT_DIR);
+    return null;
+  }
+
+  git = simpleGit({
+    baseDir: CONTENT_DIR,
+    maxConcurrentProcesses: 1
+  });
+
+  return git;
+}
 
 async function safeReadJSON(filePath) {
   const content = await fs.readFile(filePath, 'utf-8');
@@ -41,9 +63,15 @@ async function readPlaylist() {
 
 async function doGitSync() {
   try {
+    const gitClient = await ensureGit();
+    if (!gitClient) {
+      // No content directory or not a git repo yet; nothing to sync
+      return false;
+    }
+
     // Ensure repo exists and is valid
-    await git.fetch();
-    const result = await git.pull();
+    await gitClient.fetch();
+    const result = await gitClient.pull();
     console.log('Git pull result:', result.summary);
     return true;
   } catch (err) {
