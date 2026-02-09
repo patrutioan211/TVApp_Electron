@@ -83,6 +83,34 @@ async function getPlaylistForTeam(team) {
   }
 }
 
+const IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif']);
+
+/**
+ * Listează imaginile dintr-un folder din workspace (pentru PPT/Word/Excel afișate ca imagini).
+ * relativePath = calea relativă la echipă, ex: "documents/Prez_export" (poate veni cu workspace://./)
+ * Returnează array de URL-uri workspace pentru fiecare imagine, sortate.
+ */
+async function getWorkspaceFolderImages(relativePath) {
+  const team = await readTeamConfig();
+  if (!team) return [];
+  let decoded = (relativePath || '').replace(/^workspace:\/\/\.?\//, '').replace(/\\/g, '/').replace(/\.\./g, '');
+  decoded = decodeURIComponent(decoded).replace(/\/+$/, '');
+  const teamDir = path.join(WORKSPACE_DIR, team);
+  const dirPath = path.resolve(teamDir, decoded);
+  const relative = path.relative(teamDir, dirPath);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return [];
+  try {
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
+    const files = entries
+      .filter((e) => e.isFile() && IMAGE_EXT.has(path.extname(e.name).toLowerCase()))
+      .map((e) => path.join(decoded, e.name).replace(/\\/g, '/'))
+      .sort();
+    return files.map((f) => 'workspace://./' + f);
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Calea absolută către un fișier din workspace (pentru protocol handler).
  * subpath = e.g. "photos/1.jpg"
@@ -98,11 +126,52 @@ async function getWorkspaceFilePath(subpath) {
   return fullPath;
 }
 
+async function createTeam(teamName) {
+  const name = (teamName || '').trim().replace(/[<>:"/\\|?*]/g, '');
+  if (!name) return { ok: false, error: 'Invalid name' };
+  const teamDir = path.join(WORKSPACE_DIR, name);
+  try {
+    await fs.mkdir(teamDir, { recursive: true });
+    await fs.writeFile(path.join(teamDir, 'playlist.json'), JSON.stringify({ slides: [] }, null, 2), 'utf-8');
+    await fs.mkdir(path.join(teamDir, 'documents'), { recursive: true });
+    await fs.mkdir(path.join(teamDir, 'photos'), { recursive: true });
+    await fs.mkdir(path.join(teamDir, 'videos'), { recursive: true });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+async function deleteTeam(teamName) {
+  const teamDir = path.join(WORKSPACE_DIR, teamName);
+  try {
+    await fs.rm(teamDir, { recursive: true, force: true });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+async function savePlaylist(teamName, playlistData) {
+  const teamDir = path.join(WORKSPACE_DIR, teamName);
+  const playlistPath = path.join(teamDir, 'playlist.json');
+  try {
+    await fs.writeFile(playlistPath, JSON.stringify(playlistData, null, 2), 'utf-8');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
   getWorkspaceDir,
   getTeams,
   getSelectedTeam,
   setSelectedTeam,
   getPlaylistForTeam,
-  getWorkspaceFilePath
+  getWorkspaceFilePath,
+  getWorkspaceFolderImages,
+  createTeam,
+  deleteTeam,
+  savePlaylist
 };

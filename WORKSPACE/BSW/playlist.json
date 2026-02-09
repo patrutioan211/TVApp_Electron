@@ -1,20 +1,35 @@
 {
   "slides": [
     {
-      "id": "bsw-1",
-      "type": "web_url",
-      "src": "https://www.aumovio.com",
       "duration": 15,
+      "id": "bsw-1",
+      "src": "https://www.aumovio.com/en.html",
+      "subtitle": "Welcome",
       "title": "BSW",
-      "subtitle": "Welcome"
+      "type": "web_url"
     },
     {
-      "id": "bsw-2",
-      "type": "image",
-      "src": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920",
+      "duration": 60,
+      "id": "slide-8",
+      "src": "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+      "title": "HLS stream",
+      "type": "hls"
+    },
+    {
+      "duration": 15,
+      "id": "slide-1770675290715",
+      "src": "photos/sano_551b38c7.webp",
+      "subtitle": "",
+      "title": "",
+      "type": "image"
+    },
+    {
+      "id": "slide-1770675345016",
+      "type": "video",
+      "src": "videos/OEM-VII_Installation_video_8b8b1001.mp4",
       "duration": 10,
-      "title": "BSW Team",
-      "subtitle": "Add your photos in WORKSPACE/BSW/photos/"
+      "title": "",
+      "subtitle": ""
     }
   ]
 }

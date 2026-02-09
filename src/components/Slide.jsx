@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import Hls from 'hls.js';
+import { getSlideDisplay } from '../utils/slideUtils.js';
 
 function Slide({ slide }) {
   if (!slide) {
@@ -9,10 +11,11 @@ function Slide({ slide }) {
     );
   }
 
-  const { type, src, title, subtitle } = slide;
+  const { type, src } = getSlideDisplay(slide);
+  const { title, subtitle } = slide;
 
   const commonOverlay = (
-    <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2">
+    <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2 pointer-events-none">
       {title && <h2 className="text-3xl font-semibold text-white drop-shadow">{title}</h2>}
       {subtitle && <p className="text-lg text-gray-200 drop-shadow">{subtitle}</p>}
     </div>
@@ -30,13 +33,42 @@ function Slide({ slide }) {
   if (type === 'video') {
     return (
       <div className="w-full h-full relative bg-black">
-        <video key={src} src={src} autoPlay muted loop className="w-full h-full object-contain bg-black" />
+        <video key={src} src={src} autoPlay loop playsInline className="w-full h-full object-contain bg-black" />
         {commonOverlay}
       </div>
     );
   }
 
-  if (type === 'web_url') {
+  if (type === 'hls') {
+    return <HlsSlide src={src} title={title} subtitle={subtitle} />;
+  }
+
+  if (type === 'pdf') {
+    return (
+      <div className="w-full h-full relative bg-black">
+        <iframe
+          key={src}
+          src={src}
+          title={title || 'PDF'}
+          className="w-full h-full border-0 bg-white"
+        />
+        {commonOverlay}
+      </div>
+    );
+  }
+
+  if (type === 'pptx' || type === 'word' || type === 'excel') {
+    return (
+      <DocumentImagesSlide
+        folderPath={src}
+        duration={Number(slide.duration) || 20}
+        title={title}
+        subtitle={subtitle}
+      />
+    );
+  }
+
+  if (type === 'vimeo' || type === 'web_url') {
     return (
       <div className="w-full h-full relative bg-black">
         <iframe
@@ -44,7 +76,8 @@ function Slide({ slide }) {
           src={src}
           title={title || 'Embedded content'}
           className="w-full h-full border-0"
-          allow="fullscreen; clipboard-read; clipboard-write; encrypted-media; geolocation"
+          allow="fullscreen; clipboard-read; clipboard-write; encrypted-media; autoplay"
+          referrerPolicy="strict-origin-when-cross-origin"
         />
         {commonOverlay}
       </div>
@@ -53,10 +86,117 @@ function Slide({ slide }) {
 
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-200">
-      <p className="text-gray-600">Unsupported slide type: {String(type)}</p>
+      <p className="text-gray-600">Unsupported: {String(type)}</p>
+    </div>
+  );
+}
+
+function DocumentImagesSlide({ folderPath, duration, title, subtitle }) {
+  const [images, setImages] = useState([]);
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.api?.getWorkspaceFolderImages) {
+      setImages([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      let list = await window.api.getWorkspaceFolderImages(folderPath);
+      if (!cancelled && list.length === 0 && /\.(ppt|pptx|doc|docx|xls|xlsx)$/i.test(folderPath)) {
+        const folderAlt = folderPath.replace(/\.[^/.]+$/, '_export');
+        list = await window.api.getWorkspaceFolderImages(folderAlt);
+      }
+      if (!cancelled) setImages(list);
+    })();
+    return () => { cancelled = true; };
+  }, [folderPath]);
+
+  useEffect(() => {
+    if (images.length <= 1) return;
+    const totalMs = duration * 1000;
+    const perImage = totalMs / images.length;
+    const t = setInterval(() => {
+      setIndex((i) => (i + 1) % images.length);
+    }, perImage);
+    return () => clearInterval(t);
+  }, [images.length, duration]);
+
+  const commonOverlay = (
+    <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2 pointer-events-none">
+      {title && <h2 className="text-3xl font-semibold text-white drop-shadow">{title}</h2>}
+      {subtitle && <p className="text-lg text-gray-200 drop-shadow">{subtitle}</p>}
+    </div>
+  );
+
+  if (images.length === 0) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 text-gray-300 p-8 text-center">
+        <p className="text-sm mb-2">Exportă PPT / Word / Excel în imagini (PNG/JPG) într-un folder.</p>
+        <p className="text-xs text-gray-500">În playlist pune src: calea folderului (ex: documents/Prez_export)</p>
+        {commonOverlay}
+      </div>
+    );
+  }
+
+  const currentSrc = images[index];
+  return (
+    <div className="w-full h-full relative bg-black">
+      <img key={currentSrc} src={currentSrc} alt="" className="w-full h-full object-contain bg-black" />
+      {commonOverlay}
+    </div>
+  );
+}
+
+function HlsSlide({ src, title, subtitle }) {
+  const videoRef = useRef(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) setError('HLS error');
+      });
+      return () => {
+        hls.destroy();
+      };
+    }
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src;
+      return undefined;
+    }
+    setError('HLS not supported');
+    return undefined;
+  }, [src]);
+
+  const commonOverlay = (
+    <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2 pointer-events-none">
+      {title && <h2 className="text-3xl font-semibold text-white drop-shadow">{title}</h2>}
+      {subtitle && <p className="text-lg text-gray-200 drop-shadow">{subtitle}</p>}
+    </div>
+  );
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center bg-black text-gray-400">
+        {error}
+        {commonOverlay}
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full relative bg-black">
+      <video ref={videoRef} autoPlay loop playsInline className="w-full h-full object-contain bg-black" />
+      {commonOverlay}
     </div>
   );
 }
 
 export default Slide;
-

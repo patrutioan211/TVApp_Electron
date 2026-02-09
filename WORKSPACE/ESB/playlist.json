@@ -7,6 +7,22 @@
       "duration": 15,
       "title": "ESB",
       "subtitle": "Welcome"
+    },
+    {
+      "id": "esb-2",
+      "type": "image",
+      "src": "photos/file_example_JPG_2500kB.jpg",
+      "duration": 10,
+      "title": "ESB",
+      "subtitle": ""
+    },
+    {
+      "id": "esb-3",
+      "type": "video",
+      "src": "videos/file_example_MP4_1920_18MG.mp4",
+      "duration": 20,
+      "title": "Video",
+      "subtitle": ""
     }
   ]
 }

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard TV App – Administrare WORKSPACE</title>
+  <style>
+    :root { --bg: #1a1d23; --card: #252a33; --text: #e6e8ec; --muted: #8b909a; --accent: #4a9eff; --danger: #e85d6a; --green: #4ade80; --red: #f87171; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 24px; position: relative; }
+    h1 { font-size: 1.5rem; margin: 0 0 20px; }
+    .row { display: flex; gap: 24px; flex-wrap: wrap; }
+    .card { background: var(--card); border-radius: 10px; padding: 20px; min-width: 280px; }
+    .card h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); }
+    input, select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #3d434e; background: #2d323c; color: var(--text); }
+    button { cursor: pointer; background: var(--accent); color: #fff; border: none; }
+    button.danger { background: var(--danger); }
+    button.small { padding: 4px 10px; font-size: 0.85rem; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    input:read-only, select:read-only, input.locked, select.locked { opacity: 0.85; cursor: not-allowed; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    #teamList li { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 2px 0; border-radius: 8px; gap: 8px; cursor: pointer; transition: background 0.15s ease; }
+    #teamList li:hover { background: rgba(74, 158, 255, 0.12); }
+    .playlist-editor { flex: 1; min-width: 480px; }
+    .slide-row { display: grid; grid-template-columns: 100px 1fr 70px 1fr 1fr 90px 60px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.9rem; }
+    .slide-row .type { min-width: 90px; padding: 8px 10px; }
+    .slide-row.head { color: var(--muted); font-weight: 600; padding-bottom: 8px; }
+    .slide-row input { width: 100%; }
+    .msg { margin-top: 12px; padding: 8px 12px; border-radius: 6px; }
+    .msg.ok { background: #1e3a2f; color: #8fdcb4; }
+    .msg.err { background: #3a1e1e; color: #dc8f8f; }
+    .dashboard-lock { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .dashboard-lock.hidden { display: none; }
+    .dashboard-lock p { background: var(--card); padding: 24px; border-radius: 12px; max-width: 360px; text-align: center; }
+    .git-zone { position: fixed; top: 16px; right: 16px; display: flex; align-items: center; gap: 10px; z-index: 101; }
+    .git-widget { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: var(--card); border-radius: 8px; cursor: pointer; user-select: none; border: 1px solid #3d434e; }
+    .git-widget:hover { border-color: var(--accent); }
+    .git-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); transition: background 0.2s; }
+    .git-dot.connected { background: var(--green); }
+    .btn-push { padding: 8px 14px; font-size: 0.9rem; }
+    .btn-push.hidden { display: none; }
+    .file-input-hidden { position: absolute; width: 0; height: 0; opacity: 0; }
+  </style>
+</head>
+<body>
+  <div class="git-zone">
+    <div class="git-widget" id="gitWidget" title="Click pentru a verifica conexiunea Git">
+      <span class="git-dot" id="gitDot"></span>
+      <span>Check GIT Connect</span>
+    </div>
+    <button type="button" class="btn-push hidden" id="btnPush">Push changes</button>
+  </div>
+
+  <div class="dashboard-lock" id="dashboardLock">
+    <p>Conectați Git pentru a avea acces la setări.<br/>Apăsați „Check GIT Connect” (colț dreapta sus).</p>
+  </div>
+
+  <h1>Dashboard TV App – Administrare WORKSPACE</h1>
+  <div class="row">
+    <div class="card">
+      <h2>Echipe</h2>
+      <form id="formTeam">
+        <input type="text" id="teamName" placeholder="Nume echipă nouă" required />
+        <button type="submit" style="margin-top: 8px;">Adaugă</button>
+      </form>
+      <ul id="teamList"></ul>
+    </div>
+    <div class="card playlist-editor">
+      <h2>Playlist – <span id="currentTeam">(selectează o echipă)</span></h2>
+      <div class="slide-row head">
+        <span>Tip</span><span>Src / URL</span><span>Durata</span><span>Titlu</span><span>Subtitlu</span><span>Acțiune</span><span></span>
+      </div>
+      <div id="slideList"></div>
+      <button type="button" id="addSlide" style="margin-top: 12px;" disabled>+ Adaugă slide</button>
+      <button type="button" id="savePlaylist" style="margin-top: 8px; margin-left: 8px;" disabled>Salvează playlist</button>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    const api = (path, opts = {}) => fetch(path, { headers: opts.headers || {}, ...opts }).then(r => r.json());
+    let selectedTeam = null;
+    let slides = [];
+    let gitConnected = false;
+
+    const FILE_TYPES = ['image', 'video'];
+    const URL_TYPES = ['web_url', 'vimeo', 'hls'];
+    const DOC_TYPES = ['pdf', 'pptx', 'word', 'excel'];
+    const TYPES = [...FILE_TYPES, ...URL_TYPES, ...DOC_TYPES];
+
+    const GIT_CACHE_KEY = 'dashboard_git_connected';
+
+    function setGitConnected(ok) {
+      gitConnected = ok;
+      try { localStorage.setItem(GIT_CACHE_KEY, ok ? 'true' : 'false'); } catch (e) {}
+      document.getElementById('gitDot').classList.toggle('connected', ok);
+      document.getElementById('dashboardLock').classList.toggle('hidden', ok);
+      document.getElementById('btnPush').classList.toggle('hidden', !ok);
+    }
+
+    document.getElementById('gitWidget').addEventListener('click', async () => {
+      const dot = document.getElementById('gitDot');
+      dot.style.opacity = '0.6';
+      const res = await api('/api/git/connect');
+      dot.style.opacity = '';
+      if (res.ok) {
+        setGitConnected(true);
+        showMsg('Git conectat.', true);
+      } else {
+        setGitConnected(false);
+        showMsg(res.error || 'Conexiune Git eșuată.', false);
+      }
+    });
+
+    document.getElementById('btnPush').addEventListener('click', async () => {
+      if (!gitConnected) return;
+      const btn = document.getElementById('btnPush');
+      btn.disabled = true;
+      const res = await api('/api/git/push', { method: 'POST' });
+      btn.disabled = false;
+      if (res.ok) {
+        showMsg(res.message || 'Push reușit.', true);
+      } else {
+        showMsg(res.error || 'Push eșuat.', false);
+      }
+    });
+
+    function showMsg(text, ok = true) {
+      const el = document.getElementById('msg');
+      el.textContent = text;
+      el.className = 'msg ' + (ok ? 'ok' : 'err');
+    }
+
+    async function loadTeams() {
+      const list = await api('/api/teams');
+      const ul = document.getElementById('teamList');
+      ul.innerHTML = (Array.isArray(list) ? list : []).map(name => `
+        <li>
+          <span>${escapeHtml(name)}</span>
+          <button type="button" class="small danger" data-name="${escapeHtml(name)}">Șterge</button>
+        </li>
+      `).join('');
+      ul.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTeam(btn.dataset.name); });
+      });
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement('div');
+      d.textContent = s == null ? '' : s;
+      return d.innerHTML;
+    }
+
+    async function deleteTeam(name) {
+      if (!gitConnected) return;
+      if (!confirm('Ștergi echipa "' + name + '" și tot conținutul?')) return;
+      const res = await api('/api/teams/' + encodeURIComponent(name), { method: 'DELETE' });
+      if (res.error) { showMsg(res.error, false); return; }
+      showMsg('Echipă ștearsă.');
+      if (selectedTeam === name) { selectedTeam = null; slides = []; renderSlides(); }
+      loadTeams();
+    }
+
+    document.getElementById('formTeam').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!gitConnected) return;
+      const name = document.getElementById('teamName').value.trim();
+      if (!name) return;
+      const res = await api('/api/teams', { method: 'POST', body: JSON.stringify({ name }), headers: { 'Content-Type': 'application/json' } });
+      if (res.error) { showMsg(res.error, false); return; }
+      showMsg('Echipă creată: ' + (res.name || name));
+      document.getElementById('teamName').value = '';
+      loadTeams();
+    });
+
+    async function loadPlaylist(team) {
+      selectedTeam = team;
+      document.getElementById('currentTeam').textContent = team || '(selectează o echipă)';
+      if (!team) { slides = []; renderSlides(); setButtons(false); return; }
+      setButtons(true);
+      const data = await api('/api/teams/' + encodeURIComponent(team) + '/playlist');
+      slides = Array.isArray(data.slides) ? data.slides : [];
+      renderSlides();
+    }
+
+    function setButtons(enabled) {
+      document.getElementById('addSlide').disabled = !enabled;
+      document.getElementById('savePlaylist').disabled = !enabled;
+    }
+
+    function isTypeLocked(slide) {
+      const t = (slide.type || '').toLowerCase();
+      if (FILE_TYPES.includes(t)) return !!slide.src;
+      if (URL_TYPES.includes(t) || DOC_TYPES.includes(t)) return !!slide.src;
+      return false;
+    }
+    function isSrcLocked(slide) {
+      const t = (slide.type || '').toLowerCase();
+      return FILE_TYPES.includes(t) && !!slide.src;
+    }
+
+    function actionButton(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      if (t === 'image') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="image">Upload</button>';
+      if (t === 'video') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="video">Upload</button>';
+      return '<button type="button" class="small btn-row-save" data-i="'+i+'">Salvează</button>';
+    }
+
+    function renderSlides() {
+      const div = document.getElementById('slideList');
+      div.innerHTML = slides.map((s, i) => {
+        const typeLocked = isTypeLocked(s);
+        const srcLocked = isSrcLocked(s);
+        const typeVal = (s.type || 'web_url');
+        return `
+        <div class="slide-row" data-i="${i}">
+          <select class="type" ${typeLocked ? 'disabled' : ''} data-i="${i}">${TYPES.map(t => '<option value="'+t+'"'+(typeVal===t?' selected':'')+'>'+t+'</option>').join('')}</select>
+          <input type="text" class="src" value="${escapeHtml(s.src||'')}" placeholder="${srcLocked ? '' : 'URL sau cale'}" ${srcLocked ? 'readonly' : ''} data-i="${i}" />
+          <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" />
+          <input type="text" class="title" value="${escapeHtml(s.title||'')}" placeholder="Titlu" data-i="${i}" />
+          <input type="text" class="subtitle" value="${escapeHtml(s.subtitle||'')}" placeholder="Subtitlu" data-i="${i}" />
+          <span class="row-action">${actionButton(s, i)}</span>
+          <button type="button" class="small danger btn-delete" data-i="${i}">Șterge</button>
+        </div>
+      `}).join('');
+
+      div.querySelectorAll('.type').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        el.addEventListener('change', () => { slides[i].type = el.value; renderSlides(); });
+      });
+      div.querySelectorAll('.src, .duration, .title, .subtitle').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        const cls = el.className.split(' ')[0];
+        el.addEventListener('input', () => {
+          const slide = slides[i];
+          if (cls === 'duration') slide.duration = parseInt(el.value, 10) || 10;
+          else slide[cls] = el.value;
+        });
+      });
+      div.querySelectorAll('.btn-upload').forEach(btn => {
+        btn.addEventListener('click', () => openUpload(parseInt(btn.dataset.i, 10), btn.dataset.kind));
+      });
+      div.querySelectorAll('.btn-row-save').forEach(btn => {
+        btn.addEventListener('click', () => savePlaylistAndFeedback(parseInt(btn.dataset.i, 10)));
+      });
+      div.querySelectorAll('.btn-delete').forEach(btn => {
+        btn.addEventListener('click', () => { slides.splice(parseInt(btn.dataset.i, 10), 1); renderSlides(); });
+      });
+    }
+
+    let uploadInput = null;
+    function openUpload(rowIndex, kind) {
+      if (!gitConnected || !selectedTeam) return;
+      if (!uploadInput) {
+        uploadInput = document.createElement('input');
+        uploadInput.type = 'file';
+        uploadInput.className = 'file-input-hidden';
+        uploadInput.accept = kind === 'image' ? 'image/*' : 'video/*';
+        document.body.appendChild(uploadInput);
+      }
+      uploadInput.accept = kind === 'image' ? 'image/*' : 'video/*';
+      uploadInput.onchange = () => doUpload(rowIndex, kind, uploadInput.files[0]);
+      uploadInput.click();
+    }
+
+    async function doUpload(rowIndex, kind, file) {
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('kind', kind);
+      showMsg('Se încarcă...', true);
+      const res = await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showMsg(data.error || 'Încărcare eșuată.', false);
+        return;
+      }
+      const slide = slides[rowIndex];
+      slide.type = kind;
+      slide.src = data.path;
+      if (!slide.id) slide.id = 'slide-' + Date.now();
+      await savePlaylistSilent();
+      renderSlides();
+      showMsg('Fișier încărcat: ' + data.path, true);
+    }
+
+    async function savePlaylistSilent() {
+      if (!selectedTeam) return;
+      await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/playlist', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slides })
+      });
+    }
+
+    async function savePlaylistAndFeedback(rowIndex) {
+      if (!gitConnected || !selectedTeam) return;
+      const res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/playlist', {
+        method: 'PUT',
+        body: JSON.stringify({ slides }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.error) { showMsg(res.error, false); return; }
+      showMsg('Playlist salvat.', true);
+      renderSlides();
+    }
+
+    document.getElementById('addSlide').addEventListener('click', () => {
+      if (!gitConnected) return;
+      slides.push({ id: 'slide-' + Date.now(), type: 'web_url', src: '', duration: 10, title: '', subtitle: '' });
+      renderSlides();
+    });
+
+    document.getElementById('savePlaylist').addEventListener('click', async () => {
+      if (!gitConnected || !selectedTeam) return;
+      const res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/playlist', {
+        method: 'PUT',
+        body: JSON.stringify({ slides }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.error) { showMsg(res.error, false); return; }
+      showMsg('Playlist salvat.', true);
+    });
+
+    document.getElementById('teamList').addEventListener('click', (e) => {
+      if (!gitConnected) return;
+      const li = e.target.closest('li');
+      if (li && !e.target.matches('button')) {
+        const name = li.querySelector('span').textContent;
+        loadPlaylist(name);
+      }
+    });
+
+    if (localStorage.getItem(GIT_CACHE_KEY) === 'true') {
+      setGitConnected(true);
+    }
+    loadTeams();
+  </script>
+</body>
+</html>

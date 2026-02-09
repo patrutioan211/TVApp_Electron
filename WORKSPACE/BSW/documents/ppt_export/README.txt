@@ -1,0 +1,3 @@
+Exportă slide-urile din PowerPoint aici ca imagini (PNG sau JPG).
+Denumiri recomandate: slide1.png, slide2.png, ... sau 01.png, 02.png, ...
+Slideshow-ul va afișa imaginile în ordine alfabetică.
