@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('playlist-updated', listener);
     return () => ipcRenderer.removeListener('playlist-updated', listener);
   },
+  getTrafficData: () => ipcRenderer.invoke('get-traffic-data'),
   quitApp: () => ipcRenderer.invoke('quit-app')
 });
 

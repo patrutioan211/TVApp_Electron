@@ -4,6 +4,8 @@ import Clock from './components/Clock.jsx';
 import WeatherPanel from './components/WeatherPanel.jsx';
 import InfoCarousel from './components/InfoCarousel.jsx';
 import CanteenRestaurantBlock from './components/CanteenRestaurantBlock.jsx';
+import StatusDashboard from './components/StatusDashboard.jsx';
+import VisitorsCarousel from './components/VisitorsCarousel.jsx';
 import AumovioLogo from './components/AumovioLogo.jsx';
 import TeamSelection from './components/TeamSelection.jsx';
 
@@ -175,23 +177,12 @@ function App() {
               <SlidePlayer slides={playlist.slides} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Visitors</span>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                </div>
-                <p className="text-3xl font-semibold mb-1 text-gray-900">24</p>
-                <p className="text-xs text-gray-500">Checked in today</p>
+            <div className="grid grid-cols-2 gap-3 items-stretch">
+              <div className="min-w-0 min-h-0 flex flex-col">
+                <VisitorsCarousel />
               </div>
-
-              <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 flex flex-col justify-between">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Meeting rooms</span>
-                  <span className="text-[0.7rem] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">Live</span>
-                </div>
-                <p className="text-3xl font-semibold mb-1 text-gray-900">7 / 10</p>
-                <p className="text-xs text-gray-500">Currently occupied</p>
+              <div className="min-w-0 min-h-0 flex flex-col">
+                <StatusDashboard />
               </div>
             </div>
           </section>

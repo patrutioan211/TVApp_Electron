@@ -1,9 +1,11 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const fs = require('fs').promises;
 const { initGitSync } = require('./playlistService');
 const workspaceService = require('./workspaceService');
+const trafficService = require('./trafficService');
 
 const isDev = process.env.USE_DEV_SERVER === '1';
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
@@ -79,6 +81,7 @@ app.whenReady().then(() => {
     const team = await workspaceService.getSelectedTeam();
     return workspaceService.getPlaylistForTeam(team);
   });
+  ipcMain.handle('get-traffic-data', () => trafficService.getTrafficData());
   ipcMain.handle('quit-app', () => {
     app.quit();
   });
