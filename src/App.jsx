@@ -3,6 +3,7 @@ import SlidePlayer from './components/SlidePlayer.jsx';
 import Clock from './components/Clock.jsx';
 import WeatherPanel from './components/WeatherPanel.jsx';
 import InfoCarousel from './components/InfoCarousel.jsx';
+import CanteenRestaurantBlock from './components/CanteenRestaurantBlock.jsx';
 import AumovioLogo from './components/AumovioLogo.jsx';
 import TeamSelection from './components/TeamSelection.jsx';
 
@@ -202,8 +203,11 @@ function App() {
             <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
               <WeatherPanel />
             </div>
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
+            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0 hidden">
               <InfoCarousel />
+            </div>
+            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
+              <CanteenRestaurantBlock />
             </div>
           </aside>
         </main>
