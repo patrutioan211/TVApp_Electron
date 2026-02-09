@@ -7,6 +7,7 @@ import os
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
@@ -170,40 +171,75 @@ def upload_team_file(name):
         return jsonify({"error": str(e)}), 500
 
 
-# ---------- Git Connect: verificare push/pull ----------
+# ---------- Git: helper commit ----------
+def _git_head_commit(cwd: str) -> Optional[str]:
+    r = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=5,
+    )
+    if r.returncode != 0:
+        return None
+    return (r.stdout or "").strip()
+
+
+# ---------- Git Connect: verificare + return commit ----------
 @app.route("/api/git/connect", methods=["GET", "POST"])
 def git_connect():
-    """Verifică dacă repo-ul git permite push/pull (remote accesibil)."""
+    """Verifică remote și returnează commit-ul curent."""
     repo_root = WORKSPACE_DIR.parent
     if not (repo_root / ".git").exists():
-        return jsonify({"ok": False, "error": "Nu există repo git în rădăcina proiectului."})
+        return jsonify({"ok": False, "error": "No git repo in project root."})
+    cwd = str(repo_root)
     try:
         r = subprocess.run(
             ["git", "fetch", "--dry-run"],
-            cwd=str(repo_root),
+            cwd=cwd,
             capture_output=True,
             text=True,
             timeout=15,
         )
-        if r.returncode == 0:
-            return jsonify({"ok": True})
-        err = (r.stderr or r.stdout or "").strip() or "Git fetch a eșuat."
-        return jsonify({"ok": False, "error": err})
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "").strip() or "Git fetch failed."
+            return jsonify({"ok": False, "error": err})
+        commit = _git_head_commit(cwd)
+        return jsonify({"ok": True, "commit": commit or ""})
     except subprocess.TimeoutExpired:
-        return jsonify({"ok": False, "error": "Timeout la conectare."})
+        return jsonify({"ok": False, "error": "Connection timeout."})
     except FileNotFoundError:
-        return jsonify({"ok": False, "error": "Git nu este instalat."})
+        return jsonify({"ok": False, "error": "Git is not installed."})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
 
-@app.route("/api/git/push", methods=["POST"])
-def git_push():
-    """Face add, commit și push în repo."""
+@app.route("/api/git/commit", methods=["GET"])
+def git_commit():
+    """Returnează commit-ul curent (HEAD)."""
     repo_root = WORKSPACE_DIR.parent
     if not (repo_root / ".git").exists():
-        return jsonify({"ok": False, "error": "Nu există repo git."})
+        return jsonify({"ok": False, "error": "No git repo."})
+    commit = _git_head_commit(str(repo_root))
+    return jsonify({"ok": True, "commit": commit or ""})
+
+
+@app.route("/api/git/push", methods=["POST"])
+def git_push():
+    """Add, commit, push. Validates expectedCommit before proceeding."""
+    repo_root = WORKSPACE_DIR.parent
+    if not (repo_root / ".git").exists():
+        return jsonify({"ok": False, "error": "No git repo."})
     cwd = str(repo_root)
+    data = request.get_json() or {}
+    expected_commit = (data.get("expectedCommit") or "").strip()
+    current = _git_head_commit(cwd)
+    if expected_commit and current and current != expected_commit:
+        return jsonify({
+            "ok": False,
+            "error": "Changes have been made in the meantime. Please pull first.",
+            "needPull": True,
+        })
     try:
         subprocess.run(["git", "add", "-A"], cwd=cwd, capture_output=True, text=True, timeout=10, check=True)
         r = subprocess.run(
@@ -215,16 +251,38 @@ def git_push():
         )
         out = (r.stdout or "") + (r.stderr or "")
         if r.returncode != 0 and "nothing to commit" not in out.lower():
-            return jsonify({"ok": False, "error": (r.stderr or r.stdout or "Commit eșuat.").strip()})
+            return jsonify({"ok": False, "error": (r.stderr or r.stdout or "Commit failed.").strip()})
         r2 = subprocess.run(["git", "push"], cwd=cwd, capture_output=True, text=True, timeout=60)
         if r2.returncode != 0:
-            err = (r2.stderr or r2.stdout or "Push eșuat.").strip()
+            err = (r2.stderr or r2.stdout or "Push failed.").strip()
             return jsonify({"ok": False, "error": err})
-        return jsonify({"ok": True, "message": "Push reușit."})
+        new_commit = _git_head_commit(cwd)
+        return jsonify({"ok": True, "message": "Push successful.", "commit": new_commit or ""})
     except subprocess.TimeoutExpired:
         return jsonify({"ok": False, "error": "Timeout."})
     except FileNotFoundError:
-        return jsonify({"ok": False, "error": "Git nu este instalat."})
+        return jsonify({"ok": False, "error": "Git is not installed."})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/git/pull", methods=["POST"])
+def git_pull():
+    """Run git pull."""
+    repo_root = WORKSPACE_DIR.parent
+    if not (repo_root / ".git").exists():
+        return jsonify({"ok": False, "error": "No git repo."})
+    cwd = str(repo_root)
+    try:
+        r = subprocess.run(["git", "pull"], cwd=cwd, capture_output=True, text=True, timeout=60)
+        if r.returncode != 0:
+            err = (r.stderr or r.stdout or "Pull failed.").strip()
+            return jsonify({"ok": False, "error": err})
+        return jsonify({"ok": True, "message": "Pull successful."})
+    except subprocess.TimeoutExpired:
+        return jsonify({"ok": False, "error": "Timeout."})
+    except FileNotFoundError:
+        return jsonify({"ok": False, "error": "Git is not installed."})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 

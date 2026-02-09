@@ -37,9 +37,14 @@
     .git-widget:hover { border-color: var(--accent); }
     .git-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); transition: background 0.2s; }
     .git-dot.connected { background: var(--green); }
-    .btn-push { padding: 8px 14px; font-size: 0.9rem; }
-    .btn-push.hidden { display: none; }
+    .btn-push, .btn-pull { padding: 8px 14px; font-size: 0.9rem; }
+    .btn-push.hidden, .btn-pull.hidden { display: none; }
     .file-input-hidden { position: absolute; width: 0; height: 0; opacity: 0; }
+    .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 200; }
+    .loading-overlay.hidden { display: none; }
+    .loading-overlay .spinner { width: 48px; height: 48px; border: 4px solid #3d434e; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    .loading-overlay .text { color: var(--text); font-size: 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
@@ -49,6 +54,12 @@
       <span>Check GIT Connect</span>
     </div>
     <button type="button" class="btn-push hidden" id="btnPush">Push changes</button>
+    <button type="button" class="btn-pull hidden" id="btnPull">Pull</button>
+  </div>
+
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="spinner"></div>
+    <span class="text" id="loadingText">Loading...</span>
   </div>
 
   <div class="dashboard-lock" id="dashboardLock">
@@ -89,13 +100,29 @@
     const TYPES = [...FILE_TYPES, ...URL_TYPES, ...DOC_TYPES];
 
     const GIT_CACHE_KEY = 'dashboard_git_connected';
+    const GIT_COMMIT_KEY = 'dashboard_git_commit';
+    let savedCommit = '';
+
+    function setLoading(show, text) {
+      const el = document.getElementById('loadingOverlay');
+      el.classList.toggle('hidden', !show);
+      document.getElementById('loadingText').textContent = text || 'Loading...';
+    }
 
     function setGitConnected(ok) {
       gitConnected = ok;
-      try { localStorage.setItem(GIT_CACHE_KEY, ok ? 'true' : 'false'); } catch (e) {}
+      try {
+        localStorage.setItem(GIT_CACHE_KEY, ok ? 'true' : 'false');
+        if (ok && savedCommit) localStorage.setItem(GIT_COMMIT_KEY, savedCommit);
+      } catch (e) {}
       document.getElementById('gitDot').classList.toggle('connected', ok);
       document.getElementById('dashboardLock').classList.toggle('hidden', ok);
       document.getElementById('btnPush').classList.toggle('hidden', !ok);
+      if (!ok) document.getElementById('btnPull').classList.add('hidden');
+    }
+
+    function showPullButton(show) {
+      document.getElementById('btnPull').classList.toggle('hidden', !show);
     }
 
     document.getElementById('gitWidget').addEventListener('click', async () => {
@@ -104,24 +131,58 @@
       const res = await api('/api/git/connect');
       dot.style.opacity = '';
       if (res.ok) {
+        savedCommit = res.commit || '';
+        try { if (savedCommit) localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
         setGitConnected(true);
-        showMsg('Git conectat.', true);
+        showMsg('Git connected.', true);
+        showPullButton(false);
       } else {
         setGitConnected(false);
-        showMsg(res.error || 'Conexiune Git eșuată.', false);
+        showMsg(res.error || 'Git connection failed.', false);
       }
     });
 
     document.getElementById('btnPush').addEventListener('click', async () => {
       if (!gitConnected) return;
-      const btn = document.getElementById('btnPush');
-      btn.disabled = true;
-      const res = await api('/api/git/push', { method: 'POST' });
-      btn.disabled = false;
+      setLoading(true, 'Pushing...');
+      let res;
+      try {
+        res = await api('/api/git/push', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ expectedCommit: savedCommit })
+        });
+      } catch (e) {
+        res = { ok: false, error: 'Request failed.' };
+      }
+      setLoading(false);
       if (res.ok) {
-        showMsg(res.message || 'Push reușit.', true);
+        if (res.commit) {
+          savedCommit = res.commit;
+          try { localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
+        }
+        showMsg(res.message || 'Push successful.', true);
+        showPullButton(false);
       } else {
-        showMsg(res.error || 'Push eșuat.', false);
+        showMsg(res.error || 'Push failed.', false);
+        if (res.needPull) showPullButton(true);
+      }
+    });
+
+    document.getElementById('btnPull').addEventListener('click', async () => {
+      if (!gitConnected) return;
+      setLoading(true, 'Pulling...');
+      let res;
+      try {
+        res = await api('/api/git/pull', { method: 'POST' });
+      } catch (e) {
+        res = { ok: false, error: 'Request failed.' };
+      }
+      setLoading(false);
+      if (res.ok) {
+        location.reload();
+      } else {
+        showMsg(res.error || 'Pull failed.', false);
       }
     });
 
@@ -331,10 +392,17 @@
       }
     });
 
-    if (localStorage.getItem(GIT_CACHE_KEY) === 'true') {
-      setGitConnected(true);
-    }
-    loadTeams();
+    (async function init() {
+      if (localStorage.getItem(GIT_CACHE_KEY) === 'true') {
+        const res = await api('/api/git/commit');
+        if (res.ok && res.commit) {
+          savedCommit = res.commit;
+          try { localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
+        }
+        setGitConnected(true);
+      }
+      loadTeams();
+    })();
   </script>
 </body>
 </html>
