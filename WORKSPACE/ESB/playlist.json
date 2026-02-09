@@ -1,0 +1,12 @@
+{
+  "slides": [
+    {
+      "id": "esb-1",
+      "type": "web_url",
+      "src": "https://www.aumovio.com",
+      "duration": 15,
+      "title": "ESB",
+      "subtitle": "Welcome"
+    }
+  ]
+}

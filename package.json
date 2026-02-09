@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite",
-    "dev:electron": "wait-on http://localhost:5174 && electron .",
+    "dev:electron": "wait-on http://localhost:5174 && set USE_DEV_SERVER=1&& electron .",
     "build": "vite build",
-    "start": "electron ."
+    "start": "npm run build && electron ."
   },
   "dependencies": {
     "react": "^18.3.1",

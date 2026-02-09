@@ -3,8 +3,8 @@ import React from 'react';
 function Slide({ slide }) {
   if (!slide) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-slate-900">
-        <p className="text-gray-300">No slide to display.</p>
+      <div className="w-full h-full flex items-center justify-center bg-gray-200">
+        <p className="text-gray-600">No slide to display.</p>
       </div>
     );
   }
@@ -52,8 +52,8 @@ function Slide({ slide }) {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-slate-900">
-      <p className="text-gray-300">Unsupported slide type: {String(type)}</p>
+    <div className="w-full h-full flex items-center justify-center bg-gray-200">
+      <p className="text-gray-600">Unsupported slide type: {String(type)}</p>
     </div>
   );
 }

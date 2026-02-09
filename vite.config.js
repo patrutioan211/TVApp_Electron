@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   root: '.',
+  base: './', // relative paths so Electron file:// load works
   build: {
     outDir: 'dist',
     emptyOutDir: true

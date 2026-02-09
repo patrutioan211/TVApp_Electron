@@ -2,10 +2,8 @@ const fs = require('fs').promises;
 const path = require('path');
 const simpleGit = require('simple-git');
 
-// Path where your signage content Git repo lives
-// e.g. TV_App/content (see README)
-const CONTENT_DIR = path.join(__dirname, '..', 'content');
-const PLAYLIST_PATH = path.join(CONTENT_DIR, 'playlist.json');
+// Git repo = rădăcina proiectului (WORKSPACE e aici)
+const CONTENT_DIR = path.join(__dirname, '..');
 
 // 5 minutes in ms
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
@@ -35,30 +33,6 @@ async function ensureGit() {
   });
 
   return git;
-}
-
-async function safeReadJSON(filePath) {
-  const content = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(content);
-}
-
-async function readPlaylist() {
-  try {
-    const playlist = await safeReadJSON(PLAYLIST_PATH);
-
-    // Basic normalization/validation
-    if (!Array.isArray(playlist.slides)) {
-      throw new Error('playlist.json must contain a \"slides\" array');
-    }
-
-    return playlist;
-  } catch (err) {
-    console.error('Failed to read playlist.json:', err.message);
-    return {
-      slides: [],
-      error: err.message
-    };
-  }
 }
 
 async function doGitSync() {
@@ -104,7 +78,6 @@ function initGitSync(onUpdate) {
 }
 
 module.exports = {
-  initGitSync,
-  readPlaylist
+  initGitSync
 };
 
