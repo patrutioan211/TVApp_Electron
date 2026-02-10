@@ -28,7 +28,7 @@
     },
     {
       "duration": 60,
-      "enabled": true,
+      "enabled": false,
       "id": "slide-1770727109898",
       "src": "videos/sample-5s_5e8bf827.mp4",
       "subtitle": "",
@@ -38,7 +38,7 @@
     },
     {
       "duration": 60,
-      "enabled": true,
+      "enabled": false,
       "id": "slide-1770727581041",
       "src": "videos/sample-5s_b7e69b44.mp4",
       "subtitle": "",
