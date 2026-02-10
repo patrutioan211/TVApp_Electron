@@ -1,8 +1,16 @@
-require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 const { app, BrowserWindow, ipcMain, protocol, net } = require('electron');
+// Aplicat înainte de orice
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+// Evită eroarea "GPU state invalid after WaitForGetOffsetInRange" (Chromium/Windows)
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 const path = require('path');
 const { pathToFileURL } = require('url');
-const fs = require('fs').promises;
+const fs = require('fs');
+const fsPromises = require('fs').promises;
+const { Readable } = require('stream');
 const { initGitSync } = require('./playlistService');
 const workspaceService = require('./workspaceService');
 const trafficService = require('./trafficService');
@@ -10,12 +18,11 @@ const authService = require('./authService');
 const isDev = process.env.USE_DEV_SERVER === '1';
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 
-if (!isDev) {
-  protocol.registerSchemesAsPrivileged([
-    { scheme: 'app', privileges: { standard: true, supportFetchAPI: true } },
-    { scheme: 'workspace', privileges: { standard: true, supportFetchAPI: true } }
-  ]);
-}
+// Scheme-uri înregistrate și în dev ca workspace:// să funcționeze (inclusiv video)
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'app', privileges: { standard: true, supportFetchAPI: true } },
+  { scheme: 'workspace', privileges: { standard: true, supportFetchAPI: true, stream: true } }
+]);
 
 let mainWindow = null;
 
@@ -84,17 +91,61 @@ app.whenReady().then(() => {
     });
   }
 
-  // Protocol workspace:// – fișiere din WORKSPACE/<echipa selectată>
+  // Protocol workspace:// – fișiere din WORKSPACE/<echipa selectată> (cu Content-Type + Range pentru video)
+  const MIME_BY_EXT = {
+    '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime', '.avi': 'video/x-msvideo',
+    '.wmv': 'video/x-ms-wmv', '.flv': 'video/x-flv',
+    '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif',
+    '.pdf': 'application/pdf'
+  };
   protocol.handle('workspace', async (request) => {
-    const raw = request.url.slice('workspace://'.length).replace(/^\/+/, '').replace(/^\.\/?/, '');
-    const filePath = await workspaceService.getWorkspaceFilePath(raw);
+    const raw = request.url.slice('workspace://'.length).replace(/^\/+/, '').replace(/^\.\/?/, '').replace(/#.*$/, '');
+    const decoded = decodeURIComponent(raw);
+    const filePath = await workspaceService.getWorkspaceFilePath(decoded);
     if (!filePath) return new Response('Not found', { status: 404 });
     try {
-      await fs.access(filePath);
-      return net.fetch(pathToFileURL(filePath).href);
+      await fsPromises.access(filePath);
     } catch {
       return new Response('Not found', { status: 404 });
     }
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_BY_EXT[ext] || 'application/octet-stream';
+    const stat = await fsPromises.stat(filePath);
+    const size = stat.size;
+    const rangeHeader = request.headers.get('range');
+    if (rangeHeader && ext in MIME_BY_EXT && contentType.startsWith('video/')) {
+      const match = rangeHeader.match(/bytes=(\d*)-(\d*)/);
+      if (match) {
+        let start = parseInt(match[1], 10) || 0;
+        let end = match[2] ? parseInt(match[2], 10) : size - 1;
+        if (end >= size) end = size - 1;
+        if (start > end) {
+          return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+        }
+        const chunkSize = end - start + 1;
+        const stream = fs.createReadStream(filePath, { start, end });
+        const webStream = Readable.toWeb(stream);
+        return new Response(webStream, {
+          status: 206,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': String(chunkSize),
+            'Content-Range': `bytes ${start}-${end}/${size}`,
+            'Accept-Ranges': 'bytes'
+          }
+        });
+      }
+    }
+    const stream = fs.createReadStream(filePath);
+    const webStream = Readable.toWeb(stream);
+    return new Response(webStream, {
+      status: 200,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': String(size),
+        'Accept-Ranges': 'bytes'
+      }
+    });
   });
 
   createWindow(getBaseUrl());

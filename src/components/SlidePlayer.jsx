@@ -17,8 +17,14 @@ function SlidePlayer({ slides }) {
   const currentSlide = slides[currentIndex];
   const displayType = currentSlide ? getSlideDisplay(currentSlide).type : null;
   const isVideoExternal = displayType === 'youtube' || displayType === 'vimeo';
+  const isDocImages =
+    ['pptx', 'word', 'excel'].includes(displayType) ||
+    (displayType === 'web_url' && currentSlide?.converted) ||
+    (displayType === 'pdf' && currentSlide?.converted);
   const durationSeconds = Math.max(1, Number(currentSlide?.duration || 10));
-  const durationMs = durationSeconds * 1000;
+  const durationMs = isDocImages
+    ? (currentSlide?.pageCount ?? 1) * durationSeconds * 1000
+    : durationSeconds * 1000;
   const cooldownPercent = Math.max(0, Math.min(100, 100 - (elapsed / durationMs) * 100));
 
   const goNext = () => {
@@ -46,12 +52,12 @@ function SlidePlayer({ slides }) {
 
     setSlideStartTime(Date.now());
     setElapsed(0);
-    scheduleNextSlide();
+    if (!isDocImages) scheduleNextSlide();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, slides.length, currentSlide?.duration, currentSlide?.src, isVideoExternal]);
+  }, [currentIndex, slides.length, currentSlide?.duration, currentSlide?.src, isVideoExternal, isDocImages]);
 
   // Cooldown bar: update elapsed every 200ms
   useEffect(() => {
@@ -73,7 +79,10 @@ function SlidePlayer({ slides }) {
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <Slide slide={currentSlide} />
+        <Slide
+          slide={currentSlide}
+          onSlideDone={isDocImages ? goNext : undefined}
+        />
       </div>
 
       {/* Cooldown / loading bar */}
@@ -86,7 +95,7 @@ function SlidePlayer({ slides }) {
             {currentIndex + 1} / {slides.length}
           </span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-black/40 overflow-hidden backdrop-blur-sm">
+        <div className="h-0.5 w-full rounded-full bg-black/40 overflow-hidden backdrop-blur-sm">
           <div
             className="h-full rounded-full bg-white/90 transition-[width] duration-200 ease-linear"
             style={{ width: `${cooldownPercent}%` }}

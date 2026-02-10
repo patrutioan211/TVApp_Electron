@@ -20,11 +20,12 @@ function isVimeoUrl(src) {
   return /vimeo\.com\/(\d+)|player\.vimeo\.com\/video\//i.test(src);
 }
 
-function getVimeoEmbedUrl(url) {
+function getVimeoEmbedUrl(url, withSound = false) {
   const m = url.match(/vimeo\.com\/(\d+)/i) || url.match(/player\.vimeo\.com\/video\/(\d+)/i);
   const id = m ? m[1] : '';
   if (!id) return url;
-  return `https://player.vimeo.com/video/${id}?autoplay=1`;
+  const muted = withSound ? '0' : '1';
+  return `https://player.vimeo.com/video/${id}?autoplay=1&muted=${muted}`;
 }
 
 function isHlsUrl(src) {
@@ -45,7 +46,8 @@ export function getSlideDisplay(slide) {
   const src = slide.src.trim();
 
   if (isVimeoUrl(src)) {
-    return { type: 'vimeo', src: getVimeoEmbedUrl(src) };
+    const withSound = slide.vimeoSound === true;
+    return { type: 'vimeo', src: getVimeoEmbedUrl(src, withSound) };
   }
 
   const ext = getExtension(src);

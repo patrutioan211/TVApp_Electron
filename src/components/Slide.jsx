@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import Hls from 'hls.js';
 import { getSlideDisplay } from '../utils/slideUtils.js';
 
-function Slide({ slide }) {
+function Slide({ slide, onSlideDone }) {
   if (!slide) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-200">
@@ -22,9 +22,10 @@ function Slide({ slide }) {
   );
 
   if (type === 'image') {
+    const objectFit = slide.fillWidth ? 'object-fill' : 'object-contain';
     return (
       <div className="w-full h-full relative bg-black">
-        <img key={src} src={src} alt={title || 'Slide'} className="w-full h-full object-contain bg-black" />
+        <img key={src} src={src} alt={title || 'Slide'} className={`w-full h-full ${objectFit} bg-black`} />
         {commonOverlay}
       </div>
     );
@@ -32,15 +33,25 @@ function Slide({ slide }) {
 
   if (type === 'video') {
     return (
-      <div className="w-full h-full relative bg-black">
-        <video key={src} src={src} autoPlay loop playsInline className="w-full h-full object-contain bg-black" />
-        {commonOverlay}
-      </div>
+      <VideoSlide src={src} sound={slide.videoSound === true} title={title} subtitle={subtitle} />
     );
   }
 
   if (type === 'hls') {
     return <HlsSlide src={src} title={title} subtitle={subtitle} />;
+  }
+
+  if (type === 'pdf' && slide.converted && slide.src) {
+    return (
+      <DocumentImagesSlide
+        folderPath={slide.src}
+        duration={Number(slide.duration) || 20}
+        title={title}
+        subtitle={subtitle}
+        onDone={onSlideDone}
+        fillWidth={slide.fillWidth === true}
+      />
+    );
   }
 
   if (type === 'pdf') {
@@ -64,6 +75,21 @@ function Slide({ slide }) {
         duration={Number(slide.duration) || 20}
         title={title}
         subtitle={subtitle}
+        onDone={onSlideDone}
+        fillWidth={slide.fillWidth === true}
+      />
+    );
+  }
+
+  if (type === 'web_url' && slide.converted && slide.src) {
+    return (
+      <DocumentImagesSlide
+        folderPath={slide.src}
+        duration={Number(slide.duration) || 20}
+        title={title}
+        subtitle={subtitle}
+        onDone={onSlideDone}
+        fillWidth={slide.fillWidth === true}
       />
     );
   }
@@ -91,9 +117,48 @@ function Slide({ slide }) {
   );
 }
 
-function DocumentImagesSlide({ folderPath, duration, title, subtitle }) {
+function VideoSlide({ src, sound, title, subtitle }) {
+  const videoRef = useRef(null);
+  const muted = !sound;
+  const commonOverlay = (
+    <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2 pointer-events-none">
+      {title && <h2 className="text-3xl font-semibold text-white drop-shadow">{title}</h2>}
+      {subtitle && <p className="text-lg text-gray-200 drop-shadow">{subtitle}</p>}
+    </div>
+  );
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !src) return;
+    const onCanPlay = () => {
+      video.play().catch(() => {});
+    };
+    video.addEventListener('canplay', onCanPlay);
+    if (video.readyState >= 2) onCanPlay();
+    return () => video.removeEventListener('canplay', onCanPlay);
+  }, [src]);
+  return (
+    <div className="w-full h-full relative bg-black">
+      <video
+        ref={videoRef}
+        key={src}
+        src={src}
+        autoPlay
+        loop
+        playsInline
+        muted={muted}
+        preload="auto"
+        className="w-full h-full object-contain bg-black"
+      />
+      {commonOverlay}
+    </div>
+  );
+}
+
+function DocumentImagesSlide({ folderPath, duration, title, subtitle, onDone, fillWidth }) {
   const [images, setImages] = useState([]);
   const [index, setIndex] = useState(0);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.api?.getWorkspaceFolderImages) {
@@ -112,15 +177,22 @@ function DocumentImagesSlide({ folderPath, duration, title, subtitle }) {
     return () => { cancelled = true; };
   }, [folderPath]);
 
+  // Fiecare imagine 'duration' secunde; după ultima imagine se apelează onDone (fără loop)
+  // Ref pentru onDone ca intervalul să nu fie resetat la fiecare render
+  const perImageMs = Math.max(1000, (duration || 20) * 1000);
   useEffect(() => {
-    if (images.length <= 1) return;
-    const totalMs = duration * 1000;
-    const perImage = totalMs / images.length;
+    if (images.length === 0) return;
     const t = setInterval(() => {
-      setIndex((i) => (i + 1) % images.length);
-    }, perImage);
+      setIndex((i) => {
+        if (i >= images.length - 1) {
+          onDoneRef.current?.();
+          return i;
+        }
+        return i + 1;
+      });
+    }, perImageMs);
     return () => clearInterval(t);
-  }, [images.length, duration]);
+  }, [images.length, perImageMs]);
 
   const commonOverlay = (
     <div className="absolute inset-x-0 bottom-0 p-8 bg-gradient-to-t from-black/80 via-black/0 to-transparent flex flex-col gap-2 pointer-events-none">
@@ -140,9 +212,10 @@ function DocumentImagesSlide({ folderPath, duration, title, subtitle }) {
   }
 
   const currentSrc = images[index];
+  const objectFit = fillWidth ? 'object-fill' : 'object-contain';
   return (
     <div className="w-full h-full relative bg-black">
-      <img key={currentSrc} src={currentSrc} alt="" className="w-full h-full object-contain bg-black" />
+      <img key={currentSrc} src={currentSrc} alt="" className={`w-full h-full ${objectFit} bg-black`} />
       {commonOverlay}
     </div>
   );

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Dashboard TV App – Administrare WORKSPACE</title>
+  <title>Dashboard TV App – Administrare</title>
   <style>
     :root { --bg: #1a1d23; --card: #252a33; --text: #e6e8ec; --muted: #8b909a; --accent: #4a9eff; --danger: #e85d6a; --green: #4ade80; --red: #f87171; }
     * { box-sizing: border-box; }
@@ -21,11 +21,22 @@
     ul { list-style: none; padding: 0; margin: 0; }
     #teamList li { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 2px 0; border-radius: 8px; gap: 8px; cursor: pointer; transition: background 0.15s ease; }
     #teamList li:hover { background: rgba(74, 158, 255, 0.12); }
+    #teamList li.active { background: rgba(74, 158, 255, 0.25); border: 1px solid var(--accent); font-weight: 600; }
     .playlist-editor { flex: 1; min-width: 480px; }
-    .slide-row { display: grid; grid-template-columns: 90px 1fr 64px 1fr 1fr 100px 72px 72px 1fr 64px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.85rem; }
+    .playlist-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 4px 0; }
+    .playlist-header:hover { color: var(--accent); }
+    .playlist-toggle { font-size: 1.2rem; transition: transform 0.2s; }
+    .playlist-editor.collapsed .playlist-toggle { transform: rotate(-90deg); }
+    .playlist-body { overflow: hidden; }
+    .playlist-editor.collapsed .playlist-body { display: none; }
+    .slide-row { display: grid; grid-template-columns: 90px 1fr 64px 72px 72px 1fr 1fr 100px 72px 72px 1fr 64px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.85rem; }
     .slide-row > button { justify-self: center; }
     .slide-row .row-action { justify-self: center; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
     .slide-row .range-input { min-width: 0; font-size: 0.8rem; padding: 4px 8px; }
+    .slide-row .range-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
+    .slide-row .sound-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
+    .slide-row .fill-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
+    .slide-row .sound-cell, .slide-row .fill-cell { width: 100%; min-width: 52px; font-size: 0.85rem; padding: 6px 8px; cursor: pointer; }
     .btn-convert { background: #8b5cf6; color: #fff; }
     .converted-label { color: var(--muted); font-size: 0.8rem; padding: 4px 8px; }
     .slide-row .type { min-width: 82px; padding: 6px 8px; }
@@ -60,6 +71,26 @@
     .loading-overlay .spinner { width: 48px; height: 48px; border: 4px solid #3d434e; border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
     .loading-overlay .text { color: var(--text); font-size: 1rem; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 150; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.hidden { display: none; }
+    .modal-box { background: var(--card); border-radius: 12px; padding: 24px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .modal-box h3 { margin: 0 0 16px; font-size: 1.1rem; }
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; margin-bottom: 4px; color: var(--muted); font-size: 0.9rem; }
+    .form-group input, .form-group select { width: 100%; }
+    .form-group-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .form-group-inline .label-with-checkbox { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 0; cursor: pointer; }
+    .form-group-inline .label-with-checkbox input[type="checkbox"] { width: auto; }
+    .form-group-inline .hint { color: var(--muted); font-size: 0.85rem; }
+    .form-panel { display: none; }
+    .form-panel.visible { display: block; }
+    .form-actions { margin-top: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .form-status { margin-top: 10px; padding: 8px 12px; border-radius: 6px; font-size: 0.9rem; }
+    .form-status.ok { background: #1e3a2f; color: #8fdcb4; }
+    .form-status.err { background: #3a1e1e; color: #dc8f8f; }
+    .form-status.hint { background: #2d323c; color: var(--muted); }
+    #addSlideModal select, #addSlideModal input:not([readonly]) { cursor: pointer; }
+    #addSlideModal input[type="text"], #addSlideModal input[type="number"] { cursor: text; }
   </style>
 </head>
 <body>
@@ -81,7 +112,7 @@
     <p>Conectați Git pentru a avea acces la setări.<br/>Apăsați „Check GIT Connect” (colț dreapta sus).</p>
   </div>
 
-  <h1>Dashboard TV App – Administrare WORKSPACE</h1>
+  <h1>Dashboard TV App – Administrare</h1>
   <div class="row">
     <div class="card">
       <h2>Echipe</h2>
@@ -91,15 +122,136 @@
       </form>
       <ul id="teamList"></ul>
     </div>
-    <div class="card playlist-editor">
-      <h2>Playlist – <span id="currentTeam">(selectează o echipă)</span></h2>
-      <div class="slide-row head">
-        <span>Tip</span><span>Src / URL</span><span>Dur.</span><span>Titlu</span><span>Subtitlu</span><span>Range</span><span>Enable</span><span>Disable</span><span>Acțiune</span><span></span>
+    <div class="card playlist-editor collapsed" id="playlistCard">
+      <div class="playlist-header" id="playlistHeader">
+        <h2 style="margin:0;">Playlist – <span id="currentTeam">(selectează o echipă)</span></h2>
+        <span class="playlist-toggle" id="playlistToggle">▶</span>
       </div>
-      <div id="slideList"></div>
-      <button type="button" id="addSlide" style="margin-top: 12px;" disabled>+ Adaugă slide</button>
-      <button type="button" id="savePlaylist" style="margin-top: 8px; margin-left: 8px;" disabled>Salvează playlist</button>
-      <div id="msg"></div>
+      <div class="playlist-body">
+        <div class="slide-row head">
+          <span>Tip</span><span>Src / URL</span><span>Dur. (sec / pag la doc)</span><span>Sound</span><span>Fill</span><span>Titlu</span><span>Subtitlu</span><span>Range</span><span>Enable</span><span>Disable</span><span>Acțiune</span><span></span>
+        </div>
+        <div id="slideList"></div>
+        <button type="button" id="addSlide" style="margin-top: 12px;" disabled>+ Adaugă slide</button>
+        <button type="button" id="addSlidePptx" class="small" style="margin-top: 8px; margin-left: 8px;" disabled title="Adaugă slide pptx/excel (editare în listă)">+ Slide pptx/excel</button>
+        <button type="button" id="savePlaylist" style="margin-top: 8px; margin-left: 8px;" disabled>Salvează playlist</button>
+        <div id="msg"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="addSlideModal">
+    <div class="modal-box">
+      <h3>Adaugă slide</h3>
+      <div class="form-group">
+        <label>Tip</label>
+        <select id="modalType">
+          <option value="image">image</option>
+          <option value="video">video</option>
+          <option value="web_url">web_url</option>
+          <option value="vimeo">vimeo</option>
+          <option value="hls">hls</option>
+          <option value="pdf">pdf</option>
+          <option value="word">word</option>
+          <!-- pptx/excel: adăugați din listă cu butonul de mai jos -->
+        </select>
+      </div>
+      <div id="modalFormPanels">
+        <div class="form-panel" data-type="image" id="panelImage">
+          <div class="form-group"><label>Imagine: Upload sau URL</label><input type="file" id="modalImageFile" accept="image/*" /><input type="text" id="modalImageUrl" placeholder="sau URL imagine" style="margin-top:6px;" /></div>
+          <button type="button" class="small" id="modalImageUpload">Upload</button>
+          <button type="button" class="small" id="modalImageValidateUrl">Validează URL</button>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDuration" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalImageFillWidth" /> Fill width</label>
+            <span class="hint">(set once, cannot be changed later)</span>
+          </div>
+          <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitle" placeholder="Titlu" /></div>
+          <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitle" placeholder="Subtitlu" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabled"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="video" id="panelVideo">
+          <div class="form-group"><label>Video: Upload sau URL</label><input type="file" id="modalVideoFile" accept="video/*" /><input type="text" id="modalVideoUrl" placeholder="sau URL video" style="margin-top:6px;" /></div>
+          <button type="button" class="small" id="modalVideoUpload">Upload</button>
+          <button type="button" class="small" id="modalVideoValidateUrl">Validează URL</button>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDurationV" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalVideoSound" /> With Sound</label>
+            <span class="hint">(set once, cannot be changed later)</span>
+          </div>
+          <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitleV" /></div>
+          <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitleV" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledV"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="web_url" id="panelWebUrl">
+          <div class="form-group"><label>URL</label><input type="text" id="modalWebUrl" placeholder="https://..." /></div>
+          <button type="button" class="small" id="modalWebUrlValidate">Validează URL</button>
+          <p class="form-status hint">Opțional: convertiți pagina în imagini (ca la Word) pentru afișare stabilă în slideshow.</p>
+          <div class="form-group"><label>Range (all = o imagine full page; 1-5 = 5 ecrane)</label><input type="text" id="modalWebRange" value="all" placeholder="all, 1-5" /></div>
+          <button type="button" class="small btn-convert" id="modalWebConvert">Convert</button>
+          <p class="form-status hint" id="modalWebConvertHint">Setați URL, opțional range, apăsați Convert. Apoi Validează form și Finalizare.</p>
+          <div class="form-group"><label>Durata (sec) / durata per imagine la Convert</label><input type="number" id="modalDurationW" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalWebFillWidth" /> Fill width</label>
+            <span class="hint">(set once, for converted)</span>
+          </div>
+          <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitleW" /></div>
+          <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitleW" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledW"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="vimeo" id="panelVimeo">
+          <div class="form-group"><label>URL Vimeo</label><input type="text" id="modalVimeoUrl" placeholder="https://vimeo.com/..." /></div>
+          <button type="button" class="small" id="modalVimeoValidate">Validează</button>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDurationVi" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalVimeoSound" /> With Sound</label>
+            <span class="hint">(set once, cannot be changed later)</span>
+          </div>
+          <div class="form-group"><label>Titlu / Subtitlu (opțional)</label><input type="text" id="modalTitleVi" /><input type="text" id="modalSubtitleVi" placeholder="Subtitlu" style="margin-top:4px;" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledVi"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="hls" id="panelHls">
+          <div class="form-group"><label>URL HLS (.m3u8)</label><input type="text" id="modalHlsUrl" placeholder="https://..." /></div>
+          <button type="button" class="small" id="modalHlsValidate">Validează</button>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDurationH" value="60" min="1" /></div>
+          <div class="form-group"><label>Titlu / Subtitlu (opțional)</label><input type="text" id="modalTitleH" /><input type="text" id="modalSubtitleH" placeholder="Subtitlu" style="margin-top:4px;" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledH"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="pdf" id="panelPdf">
+          <div class="form-group"><label>Fișier PDF</label><input type="file" id="modalPdfFile" accept=".pdf" /></div>
+          <button type="button" class="small" id="modalPdfUpload">Upload</button>
+          <div class="form-group"><label>Range (ex: all; 1-5; 1,3,5)</label><input type="text" id="modalPdfRange" value="all" placeholder="all, 1-5, 1,3,5" /></div>
+          <button type="button" class="small btn-convert" id="modalPdfConvert">Convert</button>
+          <p class="form-status hint" id="modalPdfConvertHint">Încărcați PDF, setați range și apăsați Convert. Apoi Validează form.</p>
+          <div class="form-group"><label>Durata per pagină (sec)</label><input type="number" id="modalDurationPdf" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalPdfFillWidth" /> Fill width</label>
+            <span class="hint">(set once)</span>
+          </div>
+          <div class="form-group"><label>Titlu / Subtitlu (opțional)</label><input type="text" id="modalTitlePdf" /><input type="text" id="modalSubtitlePdf" placeholder="Subtitlu" style="margin-top:4px;" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledPdf"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="word" id="panelWord">
+          <div class="form-group"><label>Fișier Word</label><input type="file" id="modalWordFile" accept=".doc,.docx" /></div>
+          <button type="button" class="small" id="modalWordUpload">Upload</button>
+          <div class="form-group"><label>Range (ex: all; 1-5; 1,3,5)</label><input type="text" id="modalWordRange" value="all" placeholder="all, 1-5, 1,3,5" /></div>
+          <button type="button" class="small btn-convert" id="modalWordConvert">Convert</button>
+          <p class="form-status hint" id="modalWordConvertHint">Încărcați document, setați range și apăsați Convert. Apoi Validează form.</p>
+          <div class="form-group"><label>Durata per pagină (sec)</label><input type="number" id="modalDurationWord" value="60" min="1" /></div>
+          <div class="form-group form-group-inline">
+            <label class="label-with-checkbox"><input type="checkbox" id="modalWordFillWidth" /> Fill width</label>
+            <span class="hint">(set once)</span>
+          </div>
+          <div class="form-group"><label>Titlu / Subtitlu (opțional)</label><input type="text" id="modalTitleWord" /><input type="text" id="modalSubtitleWord" placeholder="Subtitlu" style="margin-top:4px;" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledWord"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+      </div>
+      <div class="form-status hidden" id="modalFormStatus"></div>
+      <div class="form-actions">
+        <button type="button" class="small" id="modalValidateBtn">Validează form</button>
+        <button type="button" id="modalFinalizeBtn" disabled>Finalizare</button>
+        <button type="button" class="small" id="modalCancelBtn">Anulare</button>
+      </div>
     </div>
   </div>
 
@@ -159,6 +311,8 @@
 
     document.getElementById('btnPush').addEventListener('click', async () => {
       if (!gitConnected) return;
+      setLoading(true, 'Salvare playlist...');
+      await savePlaylistSilent();
       setLoading(true, 'Pushing...');
       let res;
       try {
@@ -207,11 +361,29 @@
       el.className = 'msg ' + (ok ? 'ok' : 'err');
     }
 
+    let playlistExpanded = false;
+    function expandPlaylist() {
+      playlistExpanded = true;
+      document.getElementById('playlistCard').classList.remove('collapsed');
+      document.getElementById('playlistToggle').textContent = '▼';
+    }
+    function collapsePlaylist() {
+      playlistExpanded = false;
+      document.getElementById('playlistCard').classList.add('collapsed');
+      document.getElementById('playlistToggle').textContent = '▶';
+    }
+    function togglePlaylist() {
+      playlistExpanded = !playlistExpanded;
+      document.getElementById('playlistCard').classList.toggle('collapsed', !playlistExpanded);
+      document.getElementById('playlistToggle').textContent = playlistExpanded ? '▼' : '▶';
+    }
+
     async function loadTeams() {
       const list = await api('/api/teams');
+      const teams = Array.isArray(list) ? list : [];
       const ul = document.getElementById('teamList');
-      ul.innerHTML = (Array.isArray(list) ? list : []).map(name => `
-        <li>
+      ul.innerHTML = teams.map(name => `
+        <li data-name="${escapeHtml(name)}" class="${name === selectedTeam ? 'active' : ''}">
           <span>${escapeHtml(name)}</span>
           <button type="button" class="small danger" data-name="${escapeHtml(name)}">Șterge</button>
         </li>
@@ -219,6 +391,7 @@
       ul.querySelectorAll('button').forEach(btn => {
         btn.addEventListener('click', (e) => { e.stopPropagation(); deleteTeam(btn.dataset.name); });
       });
+      return teams;
     }
 
     function escapeHtml(s) {
@@ -252,7 +425,11 @@
     async function loadPlaylist(team) {
       selectedTeam = team;
       document.getElementById('currentTeam').textContent = team || '(selectează o echipă)';
+      document.querySelectorAll('#teamList li').forEach(li => {
+        li.classList.toggle('active', li.dataset.name === team);
+      });
       if (!team) { slides = []; renderSlides(); setButtons(false); return; }
+      expandPlaylist();
       setButtons(true);
       const data = await api('/api/teams/' + encodeURIComponent(team) + '/playlist');
       slides = Array.isArray(data.slides) ? data.slides.map(s => ({ ...s, enabled: s.enabled !== false })) : [];
@@ -261,6 +438,7 @@
 
     function setButtons(enabled) {
       document.getElementById('addSlide').disabled = !enabled;
+      document.getElementById('addSlidePptx').disabled = !enabled;
       document.getElementById('savePlaylist').disabled = !enabled;
     }
 
@@ -278,10 +456,16 @@
     }
 
     function isDocType(slide) {
-      return DOC_TYPES.includes((slide.type || '').toLowerCase());
+      const t = (slide.type || '').toLowerCase();
+      return DOC_TYPES.includes(t) || (t === 'web_url' && slide.converted);
     }
     function actionButton(slide, i) {
       const t = (slide.type || '').toLowerCase();
+      if (t === 'web_url' && slide.converted) return '<span class="converted-label">Converted</span>';
+      if (slide.src) {
+        if (FILE_TYPES.includes(t) || URL_TYPES.includes(t)) return '';
+        if (DOC_TYPES.includes(t) && slide.converted) return '<span class="converted-label">Converted</span>';
+      }
       if (t === 'image') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="image">Upload</button>';
       if (t === 'video') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="video">Upload</button>';
       if (DOC_TYPES.includes(t)) {
@@ -292,7 +476,31 @@
     }
     function rangeCell(slide, i) {
       if (!isDocType(slide)) return '<span></span>';
+      if (slide.converted || (slide.src && slide.type)) {
+        const rangeVal = escapeHtml(slide.range||'all');
+        const pageInfo = (slide.pageCount != null) ? ' ('+slide.pageCount+' pag.)' : '';
+        return '<span class="range-readonly" data-i="'+i+'">'+rangeVal+pageInfo+'</span>';
+      }
       return '<input type="text" class="range-input" data-i="'+i+'" placeholder="all, 1-5, 1,3,5" value="'+escapeHtml(slide.range||'')+'" />';
+    }
+    function soundCell(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      if (t === 'video') {
+        const withSound = slide.videoSound === true;
+        return '<select class="sound-cell" data-i="'+i+'" data-kind="video"><option value="yes"'+(withSound?' selected':'')+'>Yes</option><option value="no"'+(withSound?'':' selected')+'>No</option></select>';
+      }
+      if (t === 'vimeo') {
+        const withSound = slide.vimeoSound === true;
+        return '<select class="sound-cell" data-i="'+i+'" data-kind="vimeo"><option value="yes"'+(withSound?' selected':'')+'>Yes</option><option value="no"'+(withSound?'':' selected')+'>No</option></select>';
+      }
+      return '<span></span>';
+    }
+    function fillWidthCell(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      const hasFill = ['image', 'pdf', 'word', 'pptx', 'excel'].includes(t) || (t === 'web_url' && slide.converted);
+      if (!hasFill) return '<span></span>';
+      const fill = slide.fillWidth === true;
+      return '<select class="fill-cell" data-i="'+i+'"><option value="yes"'+(fill?' selected':'')+'>Yes</option><option value="no"'+(fill?'':' selected')+'>No</option></select>';
     }
 
     function renderSlides() {
@@ -306,7 +514,9 @@
         <div class="slide-row ${isDisabled ? 'disabled-row' : ''}" data-i="${i}">
           <select class="type" ${typeLocked ? 'disabled' : ''} data-i="${i}">${TYPES.map(t => '<option value="'+t+'"'+(typeVal===t?' selected':'')+'>'+t+'</option>').join('')}</select>
           <input type="text" class="src" value="${escapeHtml(s.src||'')}" placeholder="${srcLocked ? '' : 'URL sau cale'}" ${srcLocked ? 'readonly' : ''} data-i="${i}" />
-          <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" title="Per image (sec)" />
+          <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" title="${(DOC_TYPES.includes((s.type||'').toLowerCase()) || ((s.type||'').toLowerCase()==='web_url' && s.converted)) ? 'Secunde per pagină' : 'Secunde'}" />
+          ${soundCell(s, i)}
+          ${fillWidthCell(s, i)}
           <input type="text" class="title" value="${escapeHtml(s.title||'')}" placeholder="Titlu" data-i="${i}" />
           <input type="text" class="subtitle" value="${escapeHtml(s.subtitle||'')}" placeholder="Subtitlu" data-i="${i}" />
           ${rangeCell(s, i)}
@@ -329,6 +539,21 @@
           if (cls === 'duration') slide.duration = parseInt(el.value, 10) || 10;
           else if (cls === 'range-input') slide.range = el.value;
           else slide[cls] = el.value;
+        });
+      });
+      div.querySelectorAll('.sound-cell').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        const kind = el.dataset.kind;
+        el.addEventListener('change', () => {
+          const val = el.value === 'yes';
+          if (kind === 'video') slides[i].videoSound = val;
+          else if (kind === 'vimeo') slides[i].vimeoSound = val;
+        });
+      });
+      div.querySelectorAll('.fill-cell').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        el.addEventListener('change', () => {
+          slides[i].fillWidth = el.value === 'yes';
         });
       });
       div.querySelectorAll('.btn-upload').forEach(btn => {
@@ -472,6 +697,7 @@
       setLoading(false);
       if (res.ok) {
         slides[rowIndex].converted = true;
+        slides[rowIndex].pageCount = res.count;
         await savePlaylistSilent();
         showMsg('Converted ' + res.count + ' page(s). Duration is per image.', true);
         renderSlides();
@@ -502,9 +728,16 @@
     }
 
     document.getElementById('addSlide').addEventListener('click', () => {
-      if (!gitConnected) return;
-      slides.push({ id: 'slide-' + Date.now(), type: 'web_url', src: '', duration: 10, title: '', subtitle: '', enabled: true });
+      if (!gitConnected || !selectedTeam) return;
+      expandPlaylist();
+      openAddSlideModal();
+    });
+    document.getElementById('addSlidePptx').addEventListener('click', () => {
+      if (!gitConnected || !selectedTeam) return;
+      expandPlaylist();
+      slides.push({ id: 'slide-' + Date.now(), type: 'pptx', src: '', duration: 60, title: '', subtitle: '', enabled: true });
       renderSlides();
+      showMsg('Slide pptx/excel adăugat. Completați în listă (Upload + Convert).', true);
     });
 
     document.getElementById('savePlaylist').addEventListener('click', async () => {
@@ -522,9 +755,295 @@
       if (!gitConnected) return;
       const li = e.target.closest('li');
       if (li && !e.target.matches('button')) {
-        const name = li.querySelector('span').textContent;
+        const name = li.dataset.name || li.querySelector('span').textContent;
         loadPlaylist(name);
       }
+    });
+
+    document.getElementById('playlistHeader').addEventListener('click', () => togglePlaylist());
+
+    let modalFormValid = false;
+    let modalSrc = null;
+    let modalDocPath = null;
+    let modalDocConverted = false;
+    let modalConvertCount = null;
+    let modalWebConverted = false;
+    let modalWebPath = null;
+
+    function openAddSlideModal() {
+      document.getElementById('addSlideModal').classList.remove('hidden');
+      modalFormValid = false;
+      modalSrc = null;
+      modalDocPath = null;
+      modalDocConverted = false;
+      modalConvertCount = null;
+      modalWebConverted = false;
+      modalWebPath = null;
+      const videoSoundEl = document.getElementById('modalVideoSound');
+      if (videoSoundEl) videoSoundEl.checked = false;
+      const vimeoSoundEl = document.getElementById('modalVimeoSound');
+      if (vimeoSoundEl) vimeoSoundEl.checked = false;
+      ['modalImageFillWidth','modalPdfFillWidth','modalWordFillWidth','modalWebFillWidth'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      document.getElementById('modalFormStatus').classList.add('hidden');
+      document.getElementById('modalFinalizeBtn').disabled = true;
+      document.getElementById('modalType').value = 'image';
+      showModalPanel('image');
+    }
+    function closeAddSlideModal() {
+      document.getElementById('addSlideModal').classList.add('hidden');
+    }
+    function showModalPanel(type) {
+      document.querySelectorAll('#modalFormPanels .form-panel').forEach(p => {
+        p.classList.toggle('visible', p.dataset.type === type);
+      });
+      modalFormValid = false;
+      document.getElementById('modalFinalizeBtn').disabled = true;
+    }
+    function setModalStatus(msg, ok) {
+      const el = document.getElementById('modalFormStatus');
+      el.textContent = msg;
+      el.className = 'form-status ' + (ok ? 'ok' : 'err');
+      el.classList.remove('hidden');
+    }
+    function setModalValid(valid) {
+      modalFormValid = valid;
+      document.getElementById('modalFinalizeBtn').disabled = !valid;
+    }
+
+    document.getElementById('modalType').addEventListener('change', () => {
+      showModalPanel(document.getElementById('modalType').value);
+    });
+    document.getElementById('modalCancelBtn').addEventListener('click', closeAddSlideModal);
+
+    document.getElementById('modalImageUpload').addEventListener('click', () => {
+      const input = document.getElementById('modalImageFile');
+      if (!input.files.length) { setModalStatus('Selectați un fișier.', false); return; }
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      fd.append('kind', 'image');
+      setModalStatus('Se încarcă...', true);
+      fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.path) { modalSrc = data.path; setModalStatus('Imagine încărcată: ' + data.path, true); }
+          else { setModalStatus(data.error || 'Eroare', false); }
+        })
+        .catch(() => setModalStatus('Eroare la încărcare', false));
+    });
+    document.getElementById('modalImageValidateUrl').addEventListener('click', () => {
+      const url = document.getElementById('modalImageUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL.', false); return; }
+      const img = new Image();
+      img.onload = () => { modalSrc = url; setModalStatus('URL imagine valid.', true); };
+      img.onerror = () => setModalStatus('URL invalid sau imagine inaccesibilă.', false);
+      img.src = url;
+    });
+    document.getElementById('modalVideoUpload').addEventListener('click', () => {
+      const input = document.getElementById('modalVideoFile');
+      if (!input.files.length) { setModalStatus('Selectați un fișier video.', false); return; }
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      fd.append('kind', 'video');
+      setModalStatus('Se încarcă...', true);
+      fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.path) { modalSrc = data.path; setModalStatus('Video încărcat: ' + data.path, true); }
+          else { setModalStatus(data.error || 'Eroare', false); }
+        })
+        .catch(() => setModalStatus('Eroare la încărcare', false));
+    });
+    document.getElementById('modalVideoValidateUrl').addEventListener('click', () => {
+      const url = document.getElementById('modalVideoUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL video.', false); return; }
+      const v = document.createElement('video');
+      v.oncanplay = () => { modalSrc = url; setModalStatus('URL video valid.', true); };
+      v.onerror = () => setModalStatus('URL video invalid sau inaccesibil.', false);
+      v.src = url;
+    });
+    document.getElementById('modalWebUrlValidate').addEventListener('click', () => {
+      const url = document.getElementById('modalWebUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL.', false); return; }
+      if (!url.startsWith('http')) { setModalStatus('URL trebuie să înceapă cu http.', false); return; }
+      modalSrc = url;
+      setModalStatus('URL salvat. Pentru Convert: apăsați Convert. Altfel validați și finalizați pentru iframe.', true);
+    });
+    document.getElementById('modalWebConvert').addEventListener('click', async () => {
+      const url = document.getElementById('modalWebUrl').value.trim();
+      if (!url || !url.startsWith('http')) { setModalStatus('Introduceți un URL valid și apăsați Validează URL.', false); return; }
+      const range = document.getElementById('modalWebRange').value.trim() || 'all';
+      setLoading(true, 'Capturând pagină...');
+      let res;
+      try {
+        res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/convert-web', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url, range }) });
+      } catch (e) { res = { ok: false }; }
+      setLoading(false);
+      if (res.ok) { modalWebConverted = true; modalWebPath = res.path; modalConvertCount = res.count; setModalStatus('Convertit ' + res.count + ' imagine(i). Validați form și finalizați.', true); }
+      else { setModalStatus(res.error || 'Convert eșuat', false); }
+    });
+    document.getElementById('modalVimeoValidate').addEventListener('click', () => {
+      const url = document.getElementById('modalVimeoUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL Vimeo.', false); return; }
+      modalSrc = url;
+      setModalStatus('URL salvat. Validați form și finalizați.', true);
+    });
+    document.getElementById('modalHlsValidate').addEventListener('click', () => {
+      const url = document.getElementById('modalHlsUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL HLS.', false); return; }
+      modalSrc = url;
+      setModalStatus('URL salvat. Validați form și finalizați.', true);
+    });
+
+    document.getElementById('modalPdfUpload').addEventListener('click', () => {
+      const input = document.getElementById('modalPdfFile');
+      if (!input.files.length) { setModalStatus('Selectați un PDF.', false); return; }
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      setModalStatus('Se încarcă...', true);
+      fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload-document', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.path) { modalDocPath = data.path; modalDocConverted = false; setModalStatus('PDF încărcat. Setați range și apăsați Convert.', true); }
+          else { setModalStatus(data.error || 'Eroare', false); }
+        })
+        .catch(() => setModalStatus('Eroare', false));
+    });
+    document.getElementById('modalPdfConvert').addEventListener('click', async () => {
+      if (!modalDocPath) { setModalStatus('Încărcați mai întâi PDF.', false); return; }
+      const range = document.getElementById('modalPdfRange').value.trim() || 'all';
+      setLoading(true, 'Converting...');
+      let res;
+      try {
+        res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/convert-document', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src: modalDocPath, range }) });
+      } catch (e) { res = { ok: false }; }
+      setLoading(false);
+      if (res.ok) { modalDocConverted = true; modalConvertCount = res.count; setModalStatus('Convertit ' + res.count + ' pagini. Validați form și finalizați.', true); }
+      else { setModalStatus(res.error || 'Convert eșuat', false); }
+    });
+    document.getElementById('modalWordUpload').addEventListener('click', () => {
+      const input = document.getElementById('modalWordFile');
+      if (!input.files.length) { setModalStatus('Selectați un fișier Word.', false); return; }
+      const fd = new FormData();
+      fd.append('file', input.files[0]);
+      setModalStatus('Se încarcă...', true);
+      fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload-document', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+          if (data.path) { modalDocPath = data.path; modalDocConverted = false; setModalStatus('Document încărcat. Setați range și apăsați Convert.', true); }
+          else { setModalStatus(data.error || 'Eroare', false); }
+        })
+        .catch(() => setModalStatus('Eroare', false));
+    });
+    document.getElementById('modalWordConvert').addEventListener('click', async () => {
+      if (!modalDocPath) { setModalStatus('Încărcați mai întâi documentul.', false); return; }
+      const range = document.getElementById('modalWordRange').value.trim() || 'all';
+      setLoading(true, 'Converting...');
+      let res;
+      try {
+        res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/convert-document', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src: modalDocPath, range }) });
+      } catch (e) { res = { ok: false }; }
+      setLoading(false);
+      if (res.ok) { modalDocConverted = true; modalConvertCount = res.count; setModalStatus('Convertit ' + res.count + ' pagini. Validați form și finalizați.', true); }
+      else { setModalStatus(res.error || 'Convert eșuat', false); }
+    });
+
+    document.getElementById('modalValidateBtn').addEventListener('click', () => {
+      const type = document.getElementById('modalType').value;
+      let ok = false;
+      if (type === 'image') {
+        const dur = parseInt(document.getElementById('modalDuration').value, 10) || 60;
+        ok = !!modalSrc && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Adăugați imagine (upload sau URL valid) și durată.', false);
+      } else if (type === 'video') {
+        const dur = parseInt(document.getElementById('modalDurationV').value, 10) || 60;
+        ok = !!modalSrc && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Adăugați video (upload sau URL valid) și durată.', false);
+      } else if (type === 'web_url') {
+        const dur = parseInt(document.getElementById('modalDurationW').value, 10) || 60;
+        ok = (modalWebConverted && !!modalWebPath && dur >= 1) || (!modalWebConverted && !!modalSrc && dur >= 1);
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Introduceți URL și validați; sau apăsați Convert, apoi setați durata.', false);
+      } else if (type === 'vimeo' || type === 'hls') {
+        const durId = type === 'vimeo' ? 'modalDurationVi' : 'modalDurationH';
+        const dur = parseInt(document.getElementById(durId).value, 10) || 60;
+        ok = !!modalSrc && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Completați URL și durată, apoi validați URL.', false);
+      } else if (type === 'pdf' || type === 'word') {
+        const dur = parseInt(document.getElementById(type === 'pdf' ? 'modalDurationPdf' : 'modalDurationWord').value, 10) || 60;
+        ok = modalDocConverted && !!modalDocPath && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Efectuați Convert înainte, apoi setați durata.', false);
+      }
+      setModalValid(ok);
+    });
+
+    document.getElementById('modalFinalizeBtn').addEventListener('click', () => {
+      if (!modalFormValid || !selectedTeam) return;
+      const type = document.getElementById('modalType').value;
+      let slide = { id: 'slide-' + Date.now(), type, duration: 60, title: '', subtitle: '', enabled: true };
+      if (type === 'image') {
+        slide.src = modalSrc;
+        slide.duration = parseInt(document.getElementById('modalDuration').value, 10) || 60;
+        slide.fillWidth = document.getElementById('modalImageFillWidth').checked;
+        slide.title = document.getElementById('modalTitle').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitle').value.trim();
+        slide.enabled = document.getElementById('modalEnabled').value === '1';
+      } else if (type === 'video') {
+        slide.src = modalSrc;
+        slide.duration = parseInt(document.getElementById('modalDurationV').value, 10) || 60;
+        slide.videoSound = document.getElementById('modalVideoSound').checked;
+        slide.title = document.getElementById('modalTitleV').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitleV').value.trim();
+        slide.enabled = document.getElementById('modalEnabledV').value === '1';
+      } else if (type === 'web_url') {
+        slide.duration = parseInt(document.getElementById('modalDurationW').value, 10) || 60;
+        slide.title = document.getElementById('modalTitleW').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitleW').value.trim();
+        slide.enabled = document.getElementById('modalEnabledW').value === '1';
+        if (modalWebConverted && modalWebPath) {
+          slide.src = modalWebPath;
+          slide.converted = true;
+          slide.range = document.getElementById('modalWebRange').value.trim() || 'all';
+          if (modalConvertCount != null) slide.pageCount = modalConvertCount;
+          slide.fillWidth = document.getElementById('modalWebFillWidth').checked;
+        } else {
+          slide.src = modalSrc;
+        }
+      } else if (type === 'vimeo') {
+        slide.src = modalSrc;
+        slide.duration = parseInt(document.getElementById('modalDurationVi').value, 10) || 60;
+        slide.vimeoSound = document.getElementById('modalVimeoSound').checked;
+        slide.title = document.getElementById('modalTitleVi').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitleVi').value.trim();
+        slide.enabled = document.getElementById('modalEnabledVi').value === '1';
+      } else if (type === 'hls') {
+        slide.src = modalSrc;
+        slide.duration = parseInt(document.getElementById('modalDurationH').value, 10) || 60;
+        slide.title = document.getElementById('modalTitleH').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitleH').value.trim();
+        slide.enabled = document.getElementById('modalEnabledH').value === '1';
+      } else if (type === 'pdf' || type === 'word') {
+        slide.src = modalDocPath;
+        slide.range = document.getElementById(type === 'pdf' ? 'modalPdfRange' : 'modalWordRange').value.trim() || 'all';
+        slide.duration = parseInt(document.getElementById(type === 'pdf' ? 'modalDurationPdf' : 'modalDurationWord').value, 10) || 60;
+        slide.fillWidth = document.getElementById(type === 'pdf' ? 'modalPdfFillWidth' : 'modalWordFillWidth').checked;
+        slide.title = document.getElementById(type === 'pdf' ? 'modalTitlePdf' : 'modalTitleWord').value.trim();
+        slide.subtitle = document.getElementById(type === 'pdf' ? 'modalSubtitlePdf' : 'modalSubtitleWord').value.trim();
+        slide.enabled = document.getElementById(type === 'pdf' ? 'modalEnabledPdf' : 'modalEnabledWord').value === '1';
+        slide.converted = true;
+        if (modalConvertCount != null) slide.pageCount = modalConvertCount;
+      }
+      slides.push(slide);
+      savePlaylistSilent();
+      closeAddSlideModal();
+      renderSlides();
+      showMsg('Slide adăugat. Push changes for modifications to take effect.', true);
     });
 
     (async function init() {
@@ -536,7 +1055,10 @@
         }
         setGitConnected(true);
       }
-      loadTeams();
+      const teams = await loadTeams();
+      if (teams && teams.length > 0 && !selectedTeam) {
+        loadPlaylist(teams[0]);
+      }
     })();
   </script>
 </body>

@@ -436,6 +436,142 @@ def convert_document(name):
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
+def _parse_web_range(range_str: str, max_pages: int = 20) -> list:
+    """Parse range for web capture: 'all' -> [1], '1-5' or '1' -> list of page numbers (viewport captures)."""
+    s = (range_str or "all").strip().lower()
+    if s == "all":
+        return [1]  # one full-page screenshot
+    if "-" in s:
+        parts = s.split("-", 1)
+        try:
+            a, b = int(parts[0].strip()), int(parts[1].strip())
+            if 1 <= a <= b:
+                return list(range(a, min(b, max_pages) + 1))
+        except ValueError:
+            pass
+        return []
+    try:
+        n = int(s)
+        return [min(max(1, n), max_pages)]
+    except ValueError:
+        return []
+
+
+def _try_accept_cookies(page) -> None:
+    """Încearcă să dea click pe butonul de accept cookie (diverse formulări comune)."""
+    import re
+    from playwright.sync_api import TimeoutError as PlaywrightTimeout
+    # Buton/link cu text care conține una dintre aceste expresii (case-insensitive)
+    cookie_texts = [
+        "accept all", "accept cookies", "accept", "agree", "allow all",
+        "allow cookies", "allow", "consent", "începe", "continua",
+        "sunt de acord", "acceptă", "acceptă toate", "permite toate",
+        "ok", "înțeles", "got it",
+    ]
+    for text in cookie_texts:
+        try:
+            loc = page.get_by_role("button", name=re.compile(re.escape(text), re.I))
+            if loc.count() > 0:
+                loc.first.click(timeout=2000)
+                page.wait_for_timeout(1500)
+                return
+        except (PlaywrightTimeout, Exception):
+            pass
+        try:
+            loc = page.locator("a", has_text=re.compile(re.escape(text), re.I))
+            if loc.count() > 0:
+                loc.first.click(timeout=2000)
+                page.wait_for_timeout(1500)
+                return
+        except (PlaywrightTimeout, Exception):
+            pass
+    # Selectori comuni pentru overlay-uri cookie
+    for sel in [
+        "#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll",
+        ".qc-cmp2-summary-buttons button",
+        "[data-testid*='accept']",
+        "[id*='cookie'] button",
+        "[class*='cookie-accept']",
+        "[class*='cc-accept']",
+        "button[aria-label*='cookies i']",
+    ]:
+        try:
+            btn = page.locator(sel).first
+            if btn.count() > 0:
+                btn.click(timeout=2000)
+                page.wait_for_timeout(1500)
+                return
+        except (PlaywrightTimeout, Exception):
+            continue
+
+
+def _convert_web_to_images(url: str, range_list: list, out_dir: Path) -> int:
+    """Capture URL to PNG(s). range_list [1] = full page; [1,2,3,...] = that many viewport screenshots."""
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        raise RuntimeError(
+            "Playwright not installed. Run: pip install playwright && playwright install chromium"
+        )
+    count = 0
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                ignore_https_errors=True,
+            )
+            page = context.new_page()
+            page.goto(url, wait_until="networkidle", timeout=30000)
+            page.wait_for_timeout(2000)  # allow JS/render
+            _try_accept_cookies(page)
+            if range_list == [1]:
+                # single full-page screenshot
+                out_dir.mkdir(parents=True, exist_ok=True)
+                page.screenshot(path=str(out_dir / "001.png"), full_page=True)
+                count = 1
+            else:
+                # N viewport-sized screenshots (scroll and capture)
+                out_dir.mkdir(parents=True, exist_ok=True)
+                total = len(range_list)
+                for i in range(total):
+                    # scroll to i * viewport height
+                    page.evaluate(f"window.scrollTo(0, {i * 1080})")
+                    page.wait_for_timeout(500)
+                    page.screenshot(path=str(out_dir / f"{i + 1:03d}.png"))
+                    count += 1
+        finally:
+            browser.close()
+    return count
+
+
+@app.route("/api/teams/<name>/convert-web", methods=["POST"])
+def convert_web(name):
+    """Convert web URL to images. Body: { url: 'https://...', range: 'all' | '1' | '1-5' }."""
+    try:
+        team_dir = _team_path(name)
+        data = request.get_json() or {}
+        url = (data.get("url") or "").strip()
+        if not url or not url.startswith(("http://", "https://")):
+            return jsonify({"error": "invalid url"}), 400
+        range_str = (data.get("range") or "all").strip()
+        range_list = _parse_web_range(range_str)
+        if not range_list:
+            return jsonify({"error": "invalid range (use all, 1, or 1-5)"}), 400
+        folder_name = "web_" + uuid.uuid4().hex[:12]
+        folder_rel = f"documents/{folder_name}"
+        folder_abs = (team_dir / folder_rel).resolve()
+        if not str(folder_abs).startswith(str(team_dir)):
+            return jsonify({"error": "invalid path"}), 400
+        folder_abs.mkdir(parents=True, exist_ok=True)
+        count = _convert_web_to_images(url, range_list, folder_abs)
+        return jsonify({"ok": True, "count": count, "path": folder_rel})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # ---------- Git: helper commit ----------
 def _git_head_commit(cwd: str) -> Optional[str]:
     r = subprocess.run(
