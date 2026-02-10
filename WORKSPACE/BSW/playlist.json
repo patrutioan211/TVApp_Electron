@@ -6,14 +6,16 @@
       "src": "https://www.aumovio.com/en.html",
       "subtitle": "Welcome",
       "title": "BSW",
-      "type": "web_url"
+      "type": "web_url",
+      "enabled": false
     },
     {
       "duration": 60,
       "id": "slide-8",
       "src": "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
       "title": "HLS stream",
-      "type": "hls"
+      "type": "hls",
+      "enabled": false
     },
     {
       "duration": 15,
@@ -21,15 +23,17 @@
       "src": "photos/sano_551b38c7.webp",
       "subtitle": "",
       "title": "",
-      "type": "image"
+      "type": "image",
+      "enabled": false
     },
     {
-      "id": "slide-1770675345016",
-      "type": "video",
-      "src": "videos/OEM-VII_Installation_video_8b8b1001.mp4",
       "duration": 10,
+      "id": "slide-1770675345016",
+      "src": "videos/OEM-VII_Installation_video_8b8b1001.mp4",
+      "subtitle": "",
       "title": "",
-      "subtitle": ""
+      "type": "video",
+      "enabled": true
     }
   ]
 }
