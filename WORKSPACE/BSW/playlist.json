@@ -25,6 +25,17 @@
       "subtitle": "",
       "title": "",
       "type": "image"
+    },
+    {
+      "converted": true,
+      "duration": 10,
+      "enabled": true,
+      "id": "slide-1770688637366",
+      "range": "all",
+      "src": "documents/file-sample_1MB_1be81c9e",
+      "subtitle": "",
+      "title": "",
+      "type": "word"
     }
   ]
 }
