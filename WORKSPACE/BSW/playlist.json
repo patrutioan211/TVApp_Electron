@@ -27,14 +27,24 @@
       "type": "image"
     },
     {
+      "duration": 60,
+      "enabled": true,
       "id": "slide-1770727109898",
+      "src": "videos/sample-5s_5e8bf827.mp4",
+      "subtitle": "",
+      "title": "",
+      "type": "video",
+      "videoSound": true
+    },
+    {
+      "id": "slide-1770727581041",
       "type": "video",
       "duration": 60,
       "title": "",
       "subtitle": "",
       "enabled": true,
-      "src": "videos/sample-5s_5e8bf827.mp4",
-      "videoSound": true
+      "src": "videos/sample-5s_b7e69b44.mp4",
+      "videoSound": false
     }
   ]
 }
