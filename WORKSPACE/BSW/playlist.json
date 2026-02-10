@@ -62,7 +62,7 @@
     {
       "converted": true,
       "duration": 10,
-      "enabled": true,
+      "enabled": false,
       "fillWidth": false,
       "id": "slide-1770735138998",
       "pageCount": 3,
@@ -71,6 +71,19 @@
       "subtitle": "",
       "title": "",
       "type": "word"
+    },
+    {
+      "id": "slide-1770749952165",
+      "type": "pptx",
+      "duration": 20,
+      "title": "",
+      "subtitle": "",
+      "enabled": true,
+      "src": "documents/file_example_PPT_1MB_2f7973b1",
+      "range": "1-5",
+      "fillWidth": false,
+      "converted": true,
+      "pageCount": 4
     }
   ]
 }
