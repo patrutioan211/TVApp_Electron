@@ -25,6 +25,16 @@
       "subtitle": "",
       "title": "",
       "type": "image"
+    },
+    {
+      "id": "slide-1770688079151",
+      "type": "pdf",
+      "src": "documents/BustaCiecaDigitale_Nr_1780153423_66e83fcc",
+      "duration": 10,
+      "title": "",
+      "subtitle": "",
+      "enabled": true,
+      "range": "all"
     }
   ]
 }
