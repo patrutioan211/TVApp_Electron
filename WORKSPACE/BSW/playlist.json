@@ -2,7 +2,7 @@
   "slides": [
     {
       "duration": 16,
-      "enabled": false,
+      "enabled": true,
       "id": "bsw-1",
       "src": "https://www.aumovio.com/en.html",
       "subtitle": "Welcome",
