@@ -25,16 +25,6 @@
       "subtitle": "",
       "title": "",
       "type": "image"
-    },
-    {
-      "id": "slide-1770688330879",
-      "type": "pdf",
-      "src": "documents/FacturaAP20275-RENT_CENTER_NO21_SRL_5b19f3af",
-      "duration": 10,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "range": "all"
     }
   ]
 }
