@@ -25,39 +25,6 @@
       "subtitle": "",
       "title": "",
       "type": "image"
-    },
-    {
-      "converted": true,
-      "duration": 10,
-      "enabled": true,
-      "id": "slide-1770688637366",
-      "range": "all",
-      "src": "documents/file-sample_1MB_1be81c9e",
-      "subtitle": "",
-      "title": "",
-      "type": "word"
-    },
-    {
-      "id": "slide-1770689163087",
-      "type": "excel",
-      "src": "documents/file_example_XLSX_5000_e110747b",
-      "duration": 10,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "range": "all",
-      "converted": true
-    },
-    {
-      "id": "slide-1770689240461",
-      "type": "pdf",
-      "src": "documents/file-example_PDF_1MB_6763d522",
-      "duration": 10,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "range": "all",
-      "converted": true
     }
   ]
 }
