@@ -25,6 +25,18 @@
       "subtitle": "",
       "title": "",
       "type": "image"
+    },
+    {
+      "id": "slide-1770724750703",
+      "type": "web_url",
+      "duration": 60,
+      "title": "",
+      "subtitle": "",
+      "enabled": true,
+      "src": "documents/web_e7e8431d84f8",
+      "converted": true,
+      "range": "all",
+      "pageCount": 1
     }
   ]
 }
