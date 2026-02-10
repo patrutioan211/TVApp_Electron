@@ -25,6 +25,16 @@
       "subtitle": "",
       "title": "",
       "type": "image"
+    },
+    {
+      "id": "slide-1770727109898",
+      "type": "video",
+      "duration": 60,
+      "title": "",
+      "subtitle": "",
+      "enabled": true,
+      "src": "videos/sample-5s_5e8bf827.mp4",
+      "videoSound": true
     }
   ]
 }
