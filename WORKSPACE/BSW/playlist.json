@@ -37,14 +37,23 @@
       "videoSound": true
     },
     {
+      "duration": 60,
+      "enabled": true,
       "id": "slide-1770727581041",
+      "src": "videos/sample-5s_b7e69b44.mp4",
+      "subtitle": "",
+      "title": "",
       "type": "video",
+      "videoSound": false
+    },
+    {
+      "id": "slide-1770733195315",
+      "type": "vimeo",
       "duration": 60,
       "title": "",
       "subtitle": "",
       "enabled": true,
-      "src": "videos/sample-5s_b7e69b44.mp4",
-      "videoSound": false
+      "src": "https://vimeo.com/524933864"
     }
   ]
 }
