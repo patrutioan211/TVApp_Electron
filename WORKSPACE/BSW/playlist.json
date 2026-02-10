@@ -86,17 +86,14 @@
       "type": "pptx"
     },
     {
-      "id": "slide-1770750401533",
-      "type": "excel",
-      "duration": 10,
+      "id": "slide-1770751503374",
+      "type": "image",
+      "duration": 60,
       "title": "",
       "subtitle": "",
       "enabled": true,
-      "src": "documents/file_example_XLSX_5000_a0cd5da8",
-      "range": "1-5",
-      "fillWidth": false,
-      "converted": true,
-      "pageCount": 5
+      "src": "photos/sano_551b38c7_197266f7.webp",
+      "fillWidth": false
     }
   ]
 }
