@@ -13,18 +13,33 @@
     .card { background: var(--card); border-radius: 10px; padding: 20px; min-width: 280px; }
     .card h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); }
     input, select, button { padding: 8px 12px; border-radius: 6px; border: 1px solid #3d434e; background: #2d323c; color: var(--text); }
-    button { cursor: pointer; background: var(--accent); color: #fff; border: none; }
+    button { cursor: pointer; background: var(--accent); color: #fff; border: none; text-align: center; }
     button.danger { background: var(--danger); }
-    button.small { padding: 4px 10px; font-size: 0.85rem; }
-    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button.small { padding: 5px 10px; font-size: 0.8rem; min-width: 0; text-align: center; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; white-space: nowrap; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
     input:read-only, select:read-only, input.locked, select.locked { opacity: 0.85; cursor: not-allowed; }
     ul { list-style: none; padding: 0; margin: 0; }
     #teamList li { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin: 2px 0; border-radius: 8px; gap: 8px; cursor: pointer; transition: background 0.15s ease; }
     #teamList li:hover { background: rgba(74, 158, 255, 0.12); }
     .playlist-editor { flex: 1; min-width: 480px; }
-    .slide-row { display: grid; grid-template-columns: 100px 1fr 70px 1fr 1fr 90px 60px; gap: 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.9rem; }
-    .slide-row .type { min-width: 90px; padding: 8px 10px; }
+    .slide-row { display: grid; grid-template-columns: 90px 1fr 64px 1fr 1fr 100px 72px 72px 1fr 64px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.85rem; }
+    .slide-row > button { justify-self: center; }
+    .slide-row .row-action { justify-self: center; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .slide-row .range-input { min-width: 0; font-size: 0.8rem; padding: 4px 8px; }
+    .btn-convert { background: #8b5cf6; color: #fff; }
+    .converted-label { color: var(--muted); font-size: 0.8rem; padding: 4px 8px; }
+    .slide-row .type { min-width: 82px; padding: 6px 8px; }
+    .slide-row.disabled-row { opacity: 0.42; background: rgba(0,0,0,0.2); }
+    .slide-row.disabled-row input, .slide-row.disabled-row select { opacity: 0.85; }
+    .slide-row button.small { min-width: 58px; padding: 6px 10px; font-size: 0.78rem; }
+    .btn-enable { background: #22c55e; color: #0f172a; }
+    .btn-enable:hover { background: #4ade80; }
+    .btn-disable { background: #64748b; color: #e2e8f0; }
+    .btn-disable:hover { background: #94a3b8; }
+    .btn-row-save { background: var(--accent); color: #fff; }
+    .btn-upload { background: #0ea5e9; color: #fff; }
     .slide-row.head { color: var(--muted); font-weight: 600; padding-bottom: 8px; }
+    .slide-row.head span { text-align: center; }
     .slide-row input { width: 100%; }
     .msg { margin-top: 12px; padding: 8px 12px; border-radius: 6px; }
     .msg.ok { background: #1e3a2f; color: #8fdcb4; }
@@ -79,7 +94,7 @@
     <div class="card playlist-editor">
       <h2>Playlist – <span id="currentTeam">(selectează o echipă)</span></h2>
       <div class="slide-row head">
-        <span>Tip</span><span>Src / URL</span><span>Durata</span><span>Titlu</span><span>Subtitlu</span><span>Acțiune</span><span></span>
+        <span>Tip</span><span>Src / URL</span><span>Dur.</span><span>Titlu</span><span>Subtitlu</span><span>Range</span><span>Enable</span><span>Disable</span><span>Acțiune</span><span></span>
       </div>
       <div id="slideList"></div>
       <button type="button" id="addSlide" style="margin-top: 12px;" disabled>+ Adaugă slide</button>
@@ -240,7 +255,7 @@
       if (!team) { slides = []; renderSlides(); setButtons(false); return; }
       setButtons(true);
       const data = await api('/api/teams/' + encodeURIComponent(team) + '/playlist');
-      slides = Array.isArray(data.slides) ? data.slides : [];
+      slides = Array.isArray(data.slides) ? data.slides.map(s => ({ ...s, enabled: s.enabled !== false })) : [];
       renderSlides();
     }
 
@@ -257,14 +272,27 @@
     }
     function isSrcLocked(slide) {
       const t = (slide.type || '').toLowerCase();
-      return FILE_TYPES.includes(t) && !!slide.src;
+      if (FILE_TYPES.includes(t) && slide.src) return true;
+      if (DOC_TYPES.includes(t) && slide.src) return true;
+      return false;
     }
 
+    function isDocType(slide) {
+      return DOC_TYPES.includes((slide.type || '').toLowerCase());
+    }
     function actionButton(slide, i) {
       const t = (slide.type || '').toLowerCase();
       if (t === 'image') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="image">Upload</button>';
       if (t === 'video') return '<button type="button" class="small btn-upload" data-i="'+i+'" data-kind="video">Upload</button>';
+      if (DOC_TYPES.includes(t)) {
+        if (slide.converted) return '<span class="converted-label">Converted</span>';
+        return '<button type="button" class="small btn-upload btn-upload-doc" data-i="'+i+'">Upload</button><button type="button" class="small btn-convert" data-i="'+i+'">Convert</button>';
+      }
       return '<button type="button" class="small btn-row-save" data-i="'+i+'">Salvează</button>';
+    }
+    function rangeCell(slide, i) {
+      if (!isDocType(slide)) return '<span></span>';
+      return '<input type="text" class="range-input" data-i="'+i+'" placeholder="all, 1-5, 1,3,5" value="'+escapeHtml(slide.range||'')+'" />';
     }
 
     function renderSlides() {
@@ -273,13 +301,17 @@
         const typeLocked = isTypeLocked(s);
         const srcLocked = isSrcLocked(s);
         const typeVal = (s.type || 'web_url');
+        const isDisabled = s.enabled === false;
         return `
-        <div class="slide-row" data-i="${i}">
+        <div class="slide-row ${isDisabled ? 'disabled-row' : ''}" data-i="${i}">
           <select class="type" ${typeLocked ? 'disabled' : ''} data-i="${i}">${TYPES.map(t => '<option value="'+t+'"'+(typeVal===t?' selected':'')+'>'+t+'</option>').join('')}</select>
           <input type="text" class="src" value="${escapeHtml(s.src||'')}" placeholder="${srcLocked ? '' : 'URL sau cale'}" ${srcLocked ? 'readonly' : ''} data-i="${i}" />
-          <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" />
+          <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" title="Per image (sec)" />
           <input type="text" class="title" value="${escapeHtml(s.title||'')}" placeholder="Titlu" data-i="${i}" />
           <input type="text" class="subtitle" value="${escapeHtml(s.subtitle||'')}" placeholder="Subtitlu" data-i="${i}" />
+          ${rangeCell(s, i)}
+          <button type="button" class="small btn-enable" data-i="${i}">Enable</button>
+          <button type="button" class="small btn-disable" data-i="${i}">Disable</button>
           <span class="row-action">${actionButton(s, i)}</span>
           <button type="button" class="small danger btn-delete" data-i="${i}">Șterge</button>
         </div>
@@ -289,23 +321,36 @@
         const i = parseInt(el.dataset.i, 10);
         el.addEventListener('change', () => { slides[i].type = el.value; renderSlides(); });
       });
-      div.querySelectorAll('.src, .duration, .title, .subtitle').forEach(el => {
+      div.querySelectorAll('.src, .duration, .title, .subtitle, .range-input').forEach(el => {
         const i = parseInt(el.dataset.i, 10);
         const cls = el.className.split(' ')[0];
         el.addEventListener('input', () => {
           const slide = slides[i];
           if (cls === 'duration') slide.duration = parseInt(el.value, 10) || 10;
+          else if (cls === 'range-input') slide.range = el.value;
           else slide[cls] = el.value;
         });
       });
       div.querySelectorAll('.btn-upload').forEach(btn => {
-        btn.addEventListener('click', () => openUpload(parseInt(btn.dataset.i, 10), btn.dataset.kind));
+        if (btn.classList.contains('btn-upload-doc'))
+          btn.addEventListener('click', () => openUploadDocument(parseInt(btn.dataset.i, 10)));
+        else
+          btn.addEventListener('click', () => openUpload(parseInt(btn.dataset.i, 10), btn.dataset.kind));
+      });
+      div.querySelectorAll('.btn-convert').forEach(btn => {
+        btn.addEventListener('click', () => doConvert(parseInt(btn.dataset.i, 10)));
       });
       div.querySelectorAll('.btn-row-save').forEach(btn => {
         btn.addEventListener('click', () => savePlaylistAndFeedback(parseInt(btn.dataset.i, 10)));
       });
+      div.querySelectorAll('.btn-enable').forEach(btn => {
+        btn.addEventListener('click', () => { slides[parseInt(btn.dataset.i, 10)].enabled = true; renderSlides(); });
+      });
+      div.querySelectorAll('.btn-disable').forEach(btn => {
+        btn.addEventListener('click', () => { slides[parseInt(btn.dataset.i, 10)].enabled = false; renderSlides(); });
+      });
       div.querySelectorAll('.btn-delete').forEach(btn => {
-        btn.addEventListener('click', () => { slides.splice(parseInt(btn.dataset.i, 10), 1); renderSlides(); });
+        btn.addEventListener('click', () => deleteSlide(parseInt(btn.dataset.i, 10)));
       });
     }
 
@@ -345,6 +390,96 @@
       showMsg('Fișier încărcat: ' + data.path, true);
     }
 
+    let docUploadInput = null;
+    function openUploadDocument(rowIndex) {
+      if (!gitConnected || !selectedTeam) return;
+      if (!docUploadInput) {
+        docUploadInput = document.createElement('input');
+        docUploadInput.type = 'file';
+        docUploadInput.className = 'file-input-hidden';
+        docUploadInput.accept = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx';
+        document.body.appendChild(docUploadInput);
+      }
+      docUploadInput.onchange = () => doUploadDocument(rowIndex, docUploadInput.files[0]);
+      docUploadInput.click();
+    }
+    async function doUploadDocument(rowIndex, file) {
+      if (!file) return;
+      const fd = new FormData();
+      fd.append('file', file);
+      showMsg('Uploading document...', true);
+      const res = await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload-document', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        showMsg(data.error || 'Upload failed.', false);
+        return;
+      }
+      const slide = slides[rowIndex];
+      slide.src = data.path;
+      const ext = (file.name || '').split('.').pop().toLowerCase();
+      if (ext === 'pdf') slide.type = 'pdf';
+      else if (['doc','docx'].includes(ext)) slide.type = 'word';
+      else if (['xls','xlsx'].includes(ext)) slide.type = 'excel';
+      else if (['ppt','pptx'].includes(ext)) slide.type = 'pptx';
+      if (!slide.id) slide.id = 'slide-' + Date.now();
+      await savePlaylistSilent();
+      renderSlides();
+      showMsg('Document uploaded. Set range and click Convert.', true);
+    }
+
+    async function deleteSlide(rowIndex) {
+      if (!gitConnected || !selectedTeam) return;
+      const slide = slides[rowIndex];
+      const src = (slide.src || '').trim();
+      const isLocal = /^(documents|photos|videos)\//.test(src);
+      if (isLocal) {
+        const res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/delete-resource', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ src })
+        });
+        if (res.error) {
+          showMsg(res.error, false);
+          return;
+        }
+      }
+      slides.splice(rowIndex, 1);
+      await savePlaylistSilent();
+      renderSlides();
+      showMsg(isLocal ? 'Slide and resource deleted. Push changes to update git.' : 'Slide deleted.', true);
+    }
+
+    async function doConvert(rowIndex) {
+      if (!gitConnected || !selectedTeam) return;
+      const slide = slides[rowIndex];
+      const src = (slide.src || '').trim();
+      if (!src) {
+        showMsg('Upload a document first.', false);
+        return;
+      }
+      const range = (slide.range || 'all').trim() || 'all';
+      setLoading(true, 'Converting...');
+      let res;
+      try {
+        res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/convert-document', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ src, range })
+        });
+      } catch (e) {
+        res = { error: 'Request failed.' };
+      }
+      setLoading(false);
+      if (res.ok) {
+        slides[rowIndex].converted = true;
+        await savePlaylistSilent();
+        showMsg('Converted ' + res.count + ' page(s). Duration is per image.', true);
+        renderSlides();
+      } else {
+        showMsg(res.error || 'Convert failed.', false);
+      }
+    }
+
     async function savePlaylistSilent() {
       if (!selectedTeam) return;
       await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/playlist', {
@@ -362,13 +497,13 @@
         headers: { 'Content-Type': 'application/json' }
       });
       if (res.error) { showMsg(res.error, false); return; }
-      showMsg('Playlist salvat.', true);
+      showMsg('Playlist saved. Push changes for modifications to take effect.', true);
       renderSlides();
     }
 
     document.getElementById('addSlide').addEventListener('click', () => {
       if (!gitConnected) return;
-      slides.push({ id: 'slide-' + Date.now(), type: 'web_url', src: '', duration: 10, title: '', subtitle: '' });
+      slides.push({ id: 'slide-' + Date.now(), type: 'web_url', src: '', duration: 10, title: '', subtitle: '', enabled: true });
       renderSlides();
     });
 
@@ -380,7 +515,7 @@
         headers: { 'Content-Type': 'application/json' }
       });
       if (res.error) { showMsg(res.error, false); return; }
-      showMsg('Playlist salvat.', true);
+      showMsg('Playlist saved. Push changes for modifications to take effect.', true);
     });
 
     document.getElementById('teamList').addEventListener('click', (e) => {

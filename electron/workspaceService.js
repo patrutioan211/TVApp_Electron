@@ -67,9 +67,11 @@ async function getPlaylistForTeam(team) {
     if (!Array.isArray(data.slides)) {
       return { slides: [], error: 'playlist.json must contain a "slides" array' };
     }
+    // Only show slides that are enabled (enabled !== false)
+    const enabledSlides = data.slides.filter((s) => s.enabled !== false);
     // Resolve relative paths to workspace:// URL so renderer can load them
     const baseUrl = 'workspace://./';
-    const slides = data.slides.map((s) => {
+    const slides = enabledSlides.map((s) => {
       const slide = { ...s };
       if (slide.src && !slide.src.startsWith('http://') && !slide.src.startsWith('https://') && !slide.src.startsWith('workspace://')) {
         slide.src = baseUrl + slide.src.replace(/\\/g, '/');

@@ -7,7 +7,7 @@ import os
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
@@ -65,6 +65,35 @@ def create_team():
         for sub in ("documents", "photos", "videos"):
             (team_dir / sub).mkdir(exist_ok=True)
         return jsonify({"ok": True, "name": safe})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/teams/<name>/delete-resource", methods=["POST"])
+def delete_team_resource(name):
+    """Șterge fișierul sau directorul din WORKSPACE (ex. documents/folder, photos/file.jpg). La push va fi șters și din git."""
+    import shutil
+    try:
+        team_dir = _team_path(name)
+        data = request.get_json() or {}
+        src = (data.get("src") or "").strip().replace("\\", "/").strip("/")
+        if not src or ".." in src:
+            return jsonify({"error": "invalid src"}), 400
+        parts = src.split("/")
+        if parts[0] not in ("documents", "photos", "videos"):
+            return jsonify({"error": "src must be under documents, photos or videos"}), 400
+        target = (team_dir / src).resolve()
+        if not str(target).startswith(str(team_dir)):
+            return jsonify({"error": "invalid path"}), 400
+        if not target.exists():
+            return jsonify({"ok": True, "message": "already gone"})
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -171,6 +200,242 @@ def upload_team_file(name):
         return jsonify({"error": str(e)}), 500
 
 
+# ---------- Upload document (word, excel, pptx, pdf) -> documents/<folder>/ ----------
+DOC_EXT = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt"}
+DOC_MIME = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.ms-powerpoint",
+}
+
+
+def _safe_folder_name(name: str) -> str:
+    base = "".join(c for c in name if c.isalnum() or c in " -_").strip() or "doc"
+    return base[:50]
+
+
+@app.route("/api/teams/<name>/upload-document", methods=["POST"])
+def upload_document(name):
+    """Upload PDF/Word/Excel/PPTX to team/documents/<folder_name>/."""
+    try:
+        team_dir = _team_path(name)
+        team_dir.mkdir(parents=True, exist_ok=True)
+        docs_dir = team_dir / "documents"
+        docs_dir.mkdir(exist_ok=True)
+        if "file" not in request.files:
+            return jsonify({"error": "file required"}), 400
+        f = request.files["file"]
+        if not f or not f.filename:
+            return jsonify({"error": "no file selected"}), 400
+        fn = (f.filename or "").strip()
+        base, ext = os.path.splitext(fn)
+        ext = ext.lower()
+        if ext not in DOC_EXT:
+            return jsonify({"error": "allowed: pdf, docx, doc, xlsx, xls, pptx, ppt"}), 400
+        folder_name = _safe_folder_name(base) + "_" + uuid.uuid4().hex[:8]
+        dest_dir = docs_dir / folder_name
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        safe_fn = secure_filename(fn) or base + ext
+        dest_file = dest_dir / safe_fn
+        f.save(str(dest_file))
+        path = f"documents/{folder_name}"
+        return jsonify({"ok": True, "path": path})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def _parse_range(range_str: str, total_pages: int) -> list:
+    """Parse range string to 1-based page numbers. 'all' -> [1..total], '1,3,5' -> [1,3,5], '2-5' -> [2,3,4,5]."""
+    s = (range_str or "").strip().lower()
+    if not s or s == "all":
+        return list(range(1, total_pages + 1))
+    out = []
+    for part in s.split(","):
+        part = part.strip()
+        if "-" in part:
+            a, b = part.split("-", 1)
+            try:
+                lo, hi = int(a.strip()), int(b.strip())
+                for p in range(max(1, lo), min(total_pages, hi) + 1):
+                    out.append(p)
+            except ValueError:
+                pass
+        else:
+            try:
+                p = int(part)
+                if 1 <= p <= total_pages:
+                    out.append(p)
+            except ValueError:
+                pass
+    return sorted(set(out))
+
+
+def _convert_pdf_to_images(pdf_path: Path, page_numbers_1based: list, out_dir: Path) -> int:
+    import fitz  # pymupdf
+    doc = fitz.open(str(pdf_path))
+    count = 0
+    for i, page_1 in enumerate(page_numbers_1based):
+        page_0 = page_1 - 1
+        if page_0 < 0 or page_0 >= len(doc):
+            continue
+        page = doc[page_0]
+        pix = page.get_pixmap(dpi=150, alpha=False)
+        out_name = f"{i + 1:03d}.png"
+        pix.save(str(out_dir / out_name))
+        count += 1
+    doc.close()
+    return count
+
+
+def _libreoffice_paths():
+    """Return list of possible soffice executable paths (PATH names + Windows install dirs)."""
+    candidates = ["soffice", "libreoffice"]
+    if os.name == "nt":
+        for base in (
+            os.environ.get("ProgramFiles", "C:\\Program Files"),
+            os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"),
+        ):
+            for sub in ("LibreOffice", "LibreOffice 5", "LibreOffice 6", "LibreOffice 7", "LibreOffice 24", "LibreOffice 25"):
+                exe = Path(base) / sub / "program" / "soffice.exe"
+                if exe.exists():
+                    candidates.append(str(exe))
+    return candidates
+
+
+def _convert_office_to_pdf_win32(office_path: Path, out_dir: Path) -> Tuple[Optional[Path], Optional[str]]:
+    """Convert Word/Excel/PPTX to PDF using Microsoft Office (Windows only). Returns (pdf_path, error_message)."""
+    if os.name != "nt":
+        return None, "Not Windows."
+    try:
+        import pythoncom
+        import win32com.client
+    except ImportError:
+        return None, "pywin32 not installed. Run: pip install pywin32"
+    pythoncom.CoInitialize()
+    try:
+        suffix = office_path.suffix.lower()
+        pdf_path = out_dir / (office_path.stem + ".pdf")
+        in_path = os.path.abspath(office_path)
+        out_pdf = os.path.abspath(pdf_path)
+        app = None
+        if suffix in (".doc", ".docx"):
+            wdFormatPDF = 17
+            app = win32com.client.Dispatch("Word.Application")
+            app.Visible = False
+            doc = app.Documents.Open(in_path)
+            doc.SaveAs(out_pdf, FileFormat=wdFormatPDF)
+            doc.Close(SaveChanges=False)
+        elif suffix in (".xls", ".xlsx"):
+            xlTypePDF = 0
+            app = win32com.client.Dispatch("Excel.Application")
+            app.Visible = False
+            app.DisplayAlerts = False
+            book = app.Workbooks.Open(in_path)
+            book.ExportAsFixedFormat(Type=xlTypePDF, Filename=out_pdf)
+            book.Close(SaveChanges=False)
+        elif suffix in (".ppt", ".pptx"):
+            ppFixedFormatTypePDF = 2
+            out_dir.mkdir(parents=True, exist_ok=True)
+            app = win32com.client.Dispatch("PowerPoint.Application")
+            app.Visible = True
+            pres = app.Presentations.Open(in_path, WithWindow=False)
+            pres.ExportAsFixedFormat(out_pdf, ppFixedFormatTypePDF)
+            pres.Close()
+        else:
+            return None, None
+        if app:
+            app.Quit()
+        return (pdf_path if pdf_path.exists() else None), None
+    except Exception as e:
+        if app:
+            try:
+                app.Quit()
+            except Exception:
+                pass
+        err = str(e).strip() or type(e).__name__
+        return None, err
+    finally:
+        pythoncom.CoUninitialize()
+
+
+def _convert_office_to_pdf(office_path: Path, out_dir: Path) -> Tuple[Optional[Path], Optional[str]]:
+    """Convert to PDF: try LibreOffice first, then on Windows try Microsoft Office. Returns (path, error_msg)."""
+    for cmd in _libreoffice_paths():
+        try:
+            r = subprocess.run(
+                [cmd, "--headless", "--convert-to", "pdf", "--outdir", str(out_dir), str(office_path)],
+                cwd=str(out_dir),
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if r.returncode != 0:
+                continue
+            pdf_name = office_path.stem + ".pdf"
+            pdf_path = out_dir / pdf_name
+            if pdf_path.exists():
+                return pdf_path, None
+        except FileNotFoundError:
+            continue
+    path, err = _convert_office_to_pdf_win32(office_path, out_dir)
+    return path, err
+
+
+@app.route("/api/teams/<name>/convert-document", methods=["POST"])
+def convert_document(name):
+    """Convert document in src folder to images. Body: { src: 'documents/folder', range: 'all'|'1,3,5'|'2-5' }."""
+    try:
+        team_dir = _team_path(name)
+        data = request.get_json() or {}
+        src = (data.get("src") or "").strip().replace("\\", "/").strip("/")
+        if not src or ".." in src:
+            return jsonify({"error": "invalid src"}), 400
+        folder_rel = src.split("/")[0] == "documents" and src or f"documents/{src}"
+        folder_abs = (team_dir / folder_rel).resolve()
+        if not folder_abs.is_dir() or not str(folder_abs).startswith(str(team_dir)):
+            return jsonify({"error": "folder not found"}), 400
+        range_str = (data.get("range") or "all").strip()
+        doc_file = None
+        for f in folder_abs.iterdir():
+            if f.is_file() and f.suffix.lower() in DOC_EXT:
+                doc_file = f
+                break
+        if not doc_file:
+            return jsonify({"error": "no document file in folder"}), 400
+        suffix = doc_file.suffix.lower()
+        pdf_path = None
+        if suffix == ".pdf":
+            pdf_path = doc_file
+        else:
+            pdf_path, office_err = _convert_office_to_pdf(doc_file, folder_abs)
+            if not pdf_path:
+                msg = "Install LibreOffice or Microsoft Office to convert Office files. Or upload a PDF instead."
+                if office_err:
+                    msg += " (Office error: " + office_err[:200] + ")"
+                return jsonify({"error": msg}), 400
+        import fitz
+        doc = fitz.open(str(pdf_path))
+        total_pages = len(doc)
+        doc.close()
+        if total_pages == 0:
+            return jsonify({"error": "document has no pages"}), 400
+        page_list = _parse_range(range_str, total_pages)
+        if not page_list:
+            return jsonify({"error": "range resulted in no pages"}), 400
+        count = _convert_pdf_to_images(pdf_path, page_list, folder_abs)
+        return jsonify({"ok": True, "count": count, "path": folder_rel})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 # ---------- Git: helper commit ----------
 def _git_head_commit(cwd: str) -> Optional[str]:
     r = subprocess.run(
@@ -241,7 +506,8 @@ def git_push():
             "needPull": True,
         })
     try:
-        subprocess.run(["git", "add", "-A"], cwd=cwd, capture_output=True, text=True, timeout=10, check=True)
+        workspace_rel = str(WORKSPACE_DIR.relative_to(repo_root)).replace("\\", "/")
+        subprocess.run(["git", "add", workspace_rel], cwd=cwd, capture_output=True, text=True, timeout=10, check=True)
         r = subprocess.run(
             ["git", "commit", "-m", "Dashboard: update workspace"],
             cwd=cwd,
