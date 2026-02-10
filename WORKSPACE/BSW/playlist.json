@@ -45,6 +45,18 @@
       "title": "",
       "type": "video",
       "videoSound": false
+    },
+    {
+      "id": "slide-1770733616540",
+      "type": "pdf",
+      "duration": 30,
+      "title": "",
+      "subtitle": "",
+      "enabled": true,
+      "src": "documents/file-example_PDF_1MB_94f00ec1",
+      "range": "1-5",
+      "converted": true,
+      "pageCount": 5
     }
   ]
 }
