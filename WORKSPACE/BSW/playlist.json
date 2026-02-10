@@ -47,30 +47,30 @@
       "videoSound": false
     },
     {
-      "id": "slide-1770734923018",
-      "type": "pdf",
-      "duration": 60,
-      "title": "",
-      "subtitle": "",
-      "enabled": false,
-      "src": "documents/file-example_PDF_1MB_0c7bb10c",
-      "range": "1,2,3",
-      "fillWidth": true,
       "converted": true,
-      "pageCount": 3
+      "duration": 60,
+      "enabled": false,
+      "fillWidth": true,
+      "id": "slide-1770734923018",
+      "pageCount": 3,
+      "range": "1,2,3",
+      "src": "documents/file-example_PDF_1MB_0c7bb10c",
+      "subtitle": "",
+      "title": "",
+      "type": "pdf"
     },
     {
-      "id": "slide-1770735138998",
-      "type": "word",
-      "duration": 10,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "src": "documents/file-sample_1MB_ef6564b4",
-      "range": "1-3",
-      "fillWidth": true,
       "converted": true,
-      "pageCount": 3
+      "duration": 10,
+      "enabled": true,
+      "fillWidth": false,
+      "id": "slide-1770735138998",
+      "pageCount": 3,
+      "range": "1-3",
+      "src": "documents/file-sample_1MB_ef6564b4",
+      "subtitle": "",
+      "title": "",
+      "type": "word"
     }
   ]
 }
