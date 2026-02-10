@@ -45,16 +45,6 @@
       "title": "",
       "type": "video",
       "videoSound": false
-    },
-    {
-      "id": "slide-1770733497815",
-      "type": "vimeo",
-      "duration": 60,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "src": "https://vimeo.com/524933864",
-      "vimeoSound": false
     }
   ]
 }
