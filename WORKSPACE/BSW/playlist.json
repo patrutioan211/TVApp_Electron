@@ -25,16 +25,6 @@
       "subtitle": "",
       "title": "",
       "type": "image"
-    },
-    {
-      "id": "slide-1770726032128",
-      "type": "video",
-      "duration": 30,
-      "title": "",
-      "subtitle": "",
-      "enabled": true,
-      "src": "videos/OEM-VII_Installation_video_8b8b1001_7c500559.mp4",
-      "videoSound": true
     }
   ]
 }
