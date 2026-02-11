@@ -49,7 +49,7 @@
     {
       "converted": true,
       "duration": 60,
-      "enabled": false,
+      "enabled": true,
       "fillWidth": true,
       "id": "slide-1770734923018",
       "pageCount": 3,
