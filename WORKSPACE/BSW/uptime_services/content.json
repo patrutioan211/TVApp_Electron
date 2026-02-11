@@ -1,0 +1,28 @@
+{
+  "services": [
+    {
+      "id": "github",
+      "name": "GitHub",
+      "statusUrl": "",
+      "up": true
+    },
+    {
+      "id": "jira",
+      "name": "Jira",
+      "statusUrl": "",
+      "up": true
+    },
+    {
+      "id": "slack",
+      "name": "Slack",
+      "statusUrl": "",
+      "up": true
+    },
+    {
+      "id": "jenkins",
+      "name": "Jenkins",
+      "statusUrl": "",
+      "up": true
+    }
+  ]
+}
