@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const INTERVAL_UPTIME_MS = 2 * 60 * 1000;   // 2 min
-const INTERVAL_PROJECT_MS = 2 * 60 * 1000;  // 2 min
-const INTERVAL_ROOMS_MS = 1 * 60 * 1000;    // 1 min
-const INTERVAL_STOCK_MS = 2 * 60 * 1000;    // 2 min
+const INTERVAL_STOCK_MS = 2 * 60 * 1000;    // 2 min (stock – fără cooldown în dashboard)
 
 const UPTIME_SERVICES_DEFAULT = [
   { id: 'github', name: 'GitHub', up: true, statusUrl: '' },
@@ -45,7 +42,7 @@ function GitHubIcon({ className = 'w-5 h-5' }) {
 function ServiceIcon({ serviceId, className = 'w-5 h-5' }) {
   if (serviceId === 'github') return <GitHubIcon className={className} />;
   return (
-    <div className={`${className} rounded bg-gray-200 flex items-center justify-center text-[0.6rem] font-bold text-gray-500`}>
+    <div className={`${className} rounded bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500`}>
       {serviceId.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -126,16 +123,25 @@ function useCountdown(lastTick, intervalMs) {
   return Number.isFinite(remaining) ? remaining : 0;
 }
 
+function secToMs(sec, defaultSec) {
+  const s = Math.max(5, Math.min(3600, Number(sec) || defaultSec));
+  return s * 1000;
+}
+
 export default function StatusDashboard({ sections = {} }) {
   const UPTIME_SERVICES = (sections.uptime_services?.services && Array.isArray(sections.uptime_services.services)) ? sections.uptime_services.services : UPTIME_SERVICES_DEFAULT;
   const PROJECTS_IN_WORK = (sections.projects_info?.projects && Array.isArray(sections.projects_info.projects)) ? sections.projects_info.projects : PROJECTS_IN_WORK_DEFAULT;
   const MEETING_ROOMS = (sections.meeting_rooms?.rooms && Array.isArray(sections.meeting_rooms.rooms)) ? sections.meeting_rooms.rooms : MEETING_ROOMS_DEFAULT;
 
+  const INTERVAL_UPTIME_MS = secToMs(sections.uptime_services?.cooldownSeconds, 120);
+  const INTERVAL_PROJECT_MS = secToMs(sections.projects_info?.cooldownSeconds, 120);
+  const INTERVAL_ROOMS_MS = secToMs(sections.meeting_rooms?.cooldownSeconds, 60);
+
   const field1Categories = ['uptime', 'projects'];
   const field2Categories = ['rooms', 'stock'];
 
   const [cat1, item1, lastTick1] = useCarousel(
-    () => [Math.ceil(UPTIME_SERVICES.length / 3), PROJECTS_IN_WORK.length],
+    () => [1, PROJECTS_IN_WORK.length],
     (cat) => (cat === 0 ? INTERVAL_UPTIME_MS : INTERVAL_PROJECT_MS)
   );
   const [cat2, item2, lastTick2] = useCarousel(
@@ -154,24 +160,35 @@ export default function StatusDashboard({ sections = {} }) {
   const field2Label = field2Categories[safeCat2] === 'rooms' ? 'Meeting rooms' : 'Aumovio - Share Price';
 
   return (
-    <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 w-full h-full flex-1 min-h-0">
-      {/* Field 1 – larger, same min-height as Field 2 */}
-      <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-2 flex flex-col min-h-[5.5rem]">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs uppercase tracking-[0.2em] text-gray-500">{field1Label}</span>
-          <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown1}s</span>
+    <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-2 w-full h-full flex-1 min-h-0 overflow-hidden">
+      {/* Field 1 */}
+      <div className="rounded-xl bg-surface border border-gray-200 shadow-sm px-3 py-2 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-1 shrink-0">
+          <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate">{field1Label}</span>
+          <span className="text-[0.65rem] text-gray-400 tabular-nums">{countdown1}s</span>
         </div>
-        {field1Categories[safeCat1] === 'uptime' && (
-          <div className="flex flex-wrap gap-4 items-center justify-start flex-1">
-            {UPTIME_SERVICES.slice(item1 * 3, item1 * 3 + 3).map((s) => (
-              <div key={s.id} className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
-                <ServiceIcon serviceId={s.id} className="w-6 h-6" />
-                <span className="text-sm font-semibold text-gray-800">{s.name}</span>
-                <span className={`h-2 w-2 rounded-full shrink-0 ${s.up ? 'bg-emerald-500' : 'bg-red-500'}`} title={s.up ? 'Up' : 'Down'} />
-              </div>
-            ))}
-          </div>
-        )}
+        {field1Categories[safeCat1] === 'uptime' && (() => {
+          const n = UPTIME_SERVICES.length;
+          const compact = n > 4;
+          return (
+            <div className="flex flex-wrap gap-2 items-center justify-start flex-1 min-h-0 overflow-auto content-start pt-2.5">
+              {UPTIME_SERVICES.map((s) => (
+                <div
+                  key={s.id}
+                  className={`flex items-center gap-2 shrink-0 rounded-lg bg-gray-50 border border-gray-100 ${
+                    compact ? 'py-1 px-2' : 'py-2 px-3'
+                  }`}
+                >
+                  <ServiceIcon serviceId={s.id} className={compact ? 'w-4 h-4' : 'w-5 h-5'} />
+                  <span className={compact ? 'text-xs font-semibold text-gray-800' : 'text-sm font-semibold text-gray-800'}>
+                    {s.name}
+                  </span>
+                  <span className={`shrink-0 rounded-full ${s.up ? 'bg-emerald-500' : 'bg-red-500'} ${compact ? 'h-1.5 w-1.5' : 'h-2 w-2'}`} title={s.up ? 'Up' : 'Down'} />
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         {field1Categories[safeCat1] === 'projects' && (() => {
           const p = PROJECTS_IN_WORK[item1];
           if (!p) return null;
@@ -203,31 +220,29 @@ export default function StatusDashboard({ sections = {} }) {
           };
           const iconSrc = p.icon ? (p.icon.startsWith('http') || p.icon.startsWith('workspace://') ? p.icon : 'workspace://./' + p.icon.replace(/^\.\/+/, '')) : null;
           return (
-            <div className="pt-2 flex gap-3 flex-1 min-w-0">
-              <div className="shrink-0 text-gray-400 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 overflow-hidden">
+            <div className="pt-1 flex gap-2 flex-1 min-w-0 min-h-0 overflow-hidden">
+              <div className="shrink-0 text-gray-400 w-6 h-6 flex items-center justify-center rounded bg-gray-100 overflow-hidden">
                 {iconSrc ? (
                   <img src={iconSrc} alt="" className="w-full h-full object-cover" />
                 ) : (
-                  <CarIcon className="w-6 h-6" />
+                  <CarIcon className="w-4 h-4" />
                 )}
               </div>
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 min-h-0 overflow-hidden">
                 <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
-                <p className="text-[0.65rem] text-gray-500 mt-0.5">
-                  {formatDate(p.start)} → {formatDate(p.end)}
-                </p>
-                <div className="mt-2 flex items-center gap-2">
-                  <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
+                <p className="text-xs text-gray-500 mt-0 truncate">{formatDate(p.start)} → {formatDate(p.end)}</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden min-w-0">
                     <div
                       className="h-full rounded-full bg-accent"
                       style={{ width: `${Math.min(100, progress)}%` }}
                     />
                   </div>
-                  <span className="text-xs font-medium text-gray-700 tabular-nums">{progress}%</span>
+                  <span className="text-xs font-medium text-gray-700 tabular-nums shrink-0">{progress}%</span>
                 </div>
-                <div className="mt-1.5">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[0.65rem] font-medium ${statusStyles[displayStatus] || statusStyles.normal}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${statusDot[displayStatus] || statusDot.normal}`} />
+                <div className="mt-1">
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs font-medium ${statusStyles[displayStatus] || statusStyles.normal}`}>
+                    <span className={`h-1 w-1 rounded-full ${statusDot[displayStatus] || statusDot.normal}`} />
                     {statusLabels[displayStatus] || statusLabels.normal}
                   </span>
                 </div>
@@ -237,30 +252,30 @@ export default function StatusDashboard({ sections = {} }) {
         })()}
       </div>
 
-      {/* Field 2 – smaller, fixed min-height to match rooms vs share price */}
-      <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-2 flex flex-col min-h-[5.5rem]">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs uppercase tracking-[0.2em] text-gray-500">{field2Label}</span>
+      {/* Field 2 */}
+      <div className="rounded-xl bg-surface border border-gray-200 shadow-sm px-3 py-2 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex items-center justify-between mb-1 shrink-0">
+          <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate">{field2Label}</span>
           {field2Categories[safeCat2] === 'rooms' && (
             <span className="inline-flex items-center gap-1.5">
-              <span className="text-[0.7rem] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">Live</span>
-              <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown2}s</span>
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">Live</span>
+              <span className="text-[0.65rem] text-gray-400 tabular-nums">{countdown2}s</span>
             </span>
           )}
           {field2Categories[safeCat2] === 'stock' && (
-            <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown2}s</span>
+            <span className="text-[0.65rem] text-gray-400 tabular-nums">{countdown2}s</span>
           )}
         </div>
         {field2Categories[safeCat2] === 'rooms' && (() => {
           const room = MEETING_ROOMS[item2];
           if (!room) return null;
           return (
-            <div className="flex-1 min-h-[3.5rem]">
-              <p className="text-sm font-semibold text-gray-900">{room.name}</p>
-              <p className="text-[0.65rem] text-gray-500 mt-0.5 mb-1">Availability today</p>
-              <div className="flex flex-wrap gap-1.5 h-14 overflow-hidden content-start">
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <p className="text-sm font-semibold text-gray-900 truncate">{room.name}</p>
+              <p className="text-xs text-gray-500 mt-0 mb-1">Availability today</p>
+              <div className="flex flex-wrap gap-1.5 overflow-hidden content-start">
                 {(room.slots || []).map((slot) => (
-                  <span key={slot} className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                  <span key={slot} className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                     {slot}
                   </span>
                 ))}
@@ -276,26 +291,30 @@ export default function StatusDashboard({ sections = {} }) {
           const last = values[values.length - 1];
           const prev = values[values.length - 2];
           const trendUp = last >= prev;
+          const barMinHeightPct = 15;
           return (
-            <div className="flex-1 flex flex-col min-h-[3.5rem]">
-              <div className="flex items-baseline gap-2 mb-2">
-                <span className="text-xl font-semibold text-gray-900">{last} €</span>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div className="flex items-baseline gap-2 mb-1 shrink-0">
+                <span className="text-base font-semibold text-gray-900">{last} €</span>
                 <span className={`text-xs font-medium ${trendUp ? 'text-emerald-600' : 'text-red-600'}`}>
                   {trendUp ? '↑' : '↓'} {Math.abs(last - prev)} €
                 </span>
               </div>
-              <div className="flex items-end gap-1 h-14">
-                {STOCK_HISTORY.map((d) => (
-                  <div key={d.month} className="flex-1 flex flex-col items-center gap-0.5 h-full">
-                    <div
-                      className="w-full rounded-t bg-accent min-h-[6px]"
-                      style={{ height: `${((d.value - min) / range) * 100}%`, maxHeight: '100%' }}
-                    />
-                    <span className="text-[0.6rem] text-gray-500">{d.month}</span>
-                  </div>
-                ))}
+              <div className="flex items-end gap-1 flex-1 min-h-[4rem] max-h-20">
+                {STOCK_HISTORY.map((d) => {
+                  const pct = range > 0 ? ((d.value - min) / range) * (100 - barMinHeightPct) + barMinHeightPct : barMinHeightPct;
+                  return (
+                    <div key={d.month} className="flex-1 flex flex-col items-center justify-end gap-0.5 h-full min-h-0">
+                      <div
+                        className="w-full rounded-t bg-accent min-h-[6px]"
+                        style={{ height: `${pct}%` }}
+                      />
+                      <span className="text-[0.6rem] text-gray-500 shrink-0">{d.month}</span>
+                    </div>
+                  );
+                })}
               </div>
-              <p className="text-[0.6rem] text-gray-500 mt-1">Last quarter (EUR)</p>
+              <p className="text-[0.6rem] text-gray-500 mt-1 shrink-0">Last quarter (EUR)</p>
             </div>
           );
         })()}

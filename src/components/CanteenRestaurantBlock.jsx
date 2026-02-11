@@ -80,26 +80,26 @@ function TrafficView({ trafficFallback }) {
   const isLive = data?.isLive ?? false;
 
   return (
-    <div className="w-full flex flex-col gap-3">
-      <span className="text-[0.65rem] uppercase tracking-[0.15em] font-semibold text-gray-600">
+    <div className="w-full flex flex-col gap-2">
+      <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate">
         Traffic to city
       </span>
-      <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-        <p className="text-[0.65rem] text-gray-500 mb-1.5">From {origin}</p>
-        <div className="space-y-2">
+      <div className="p-2 rounded-md bg-gray-50 border border-gray-100">
+        <p className="text-[0.65rem] text-gray-500 mt-0 mb-1">From {origin}</p>
+        <div className="space-y-1.5">
           {routes.map((r, i) => (
-            <div key={i} className="flex items-center justify-between gap-2 text-xs">
-              <span className="font-medium text-gray-800 truncate">{r.destination}</span>
-              <span className="shrink-0 tabular-nums text-gray-600">
+            <div key={i} className="flex items-center justify-between gap-1.5">
+              <span className="text-sm font-semibold text-gray-900 truncate">{r.destination}</span>
+              <span className="shrink-0 text-xs tabular-nums text-gray-600">
                 {r.minutes != null ? `${r.minutes} min` : '—'}
               </span>
-              <span className={`shrink-0 px-1.5 py-0.5 rounded border text-[0.65rem] font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.unknown}`}>
+              <span className={`shrink-0 px-2 py-0.5 rounded border text-xs font-medium ${STATUS_STYLES[r.status] ?? STATUS_STYLES.unknown}`}>
                 {STATUS_LABELS[r.status] ?? '—'}
               </span>
             </div>
           ))}
         </div>
-        <p className="text-[0.6rem] text-gray-400 mt-1.5">
+        <p className="text-[0.65rem] text-gray-400 mt-1">
           {isLive ? 'Live' : 'Info'} · updates every 20 min
         </p>
       </div>
@@ -119,25 +119,25 @@ function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: tr
   const showRestaurantOfDay = now.getHours() * 60 + now.getMinutes() >= 10 * 60 + 30;
 
   return (
-    <div className="w-full flex flex-col gap-3">
-      <span className="text-[0.65rem] uppercase tracking-[0.15em] font-semibold text-gray-600">
-        Canteen & Restaurant of the Day
+    <div className="w-full flex flex-col gap-1.5 min-h-0 overflow-hidden">
+      <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate shrink-0">
+        Canteen & Restaurant
       </span>
-      <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-        <p className="text-xs font-semibold text-gray-700 mb-1">Canteen</p>
-        <p className="text-[0.65rem] text-gray-500">
+      <div className="p-2 rounded-md bg-gray-50 border border-gray-100 shrink-0">
+        <p className="text-sm font-semibold text-gray-900 mb-0">Canteen</p>
+        <p className="text-[0.65rem] text-gray-500 mt-0 mb-1 leading-snug">
           {slots.map((s) => `${s.time} (${s.duration || '15 min'})`).join(' · ')}
         </p>
       </div>
-      <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 flex flex-col gap-1.5">
-        <p className="text-xs font-semibold text-gray-800">Restaurant of the Day</p>
+      <div className="p-2 rounded-md bg-amber-50 border border-amber-100 flex flex-col gap-0 shrink-0">
+        <p className="text-sm font-semibold text-gray-900">Restaurant of the Day</p>
         {showRestaurantOfDay ? (
           <>
-            <p className="text-sm text-amber-800 font-medium leading-tight">{restaurant.name}</p>
-            <p className="text-[0.65rem] text-gray-600 leading-snug">{tagline}</p>
+            <p className="text-xs text-amber-800 font-medium leading-snug mt-0.5">{restaurant.name}</p>
+            <p className="text-[0.65rem] text-gray-500 mt-0 mb-1 leading-snug">{tagline}</p>
           </>
         ) : (
-          <p className="text-xs text-gray-600">De la ora 10:30 →</p>
+          <p className="text-[0.65rem] text-gray-500 mt-0">De la ora 10:30 →</p>
         )}
       </div>
     </div>

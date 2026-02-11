@@ -8,6 +8,7 @@ import StatusDashboard from './components/StatusDashboard.jsx';
 import VisitorsCarousel from './components/VisitorsCarousel.jsx';
 import AumovioLogo from './components/AumovioLogo.jsx';
 import TeamSelection from './components/TeamSelection.jsx';
+import StretchingPopup from './components/StretchingPopup.jsx';
 
 function App() {
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -19,7 +20,7 @@ function App() {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60000);
+    const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -158,21 +159,20 @@ function App() {
   }
 
   return (
-    <div className="w-screen h-screen bg-background text-gray-800 overflow-hidden">
-      <div className="h-full w-full flex flex-col">
-        <header className="flex items-center justify-between shrink-0 px-4 py-3">
-          <div className="flex items-center gap-8">
-            <AumovioLogo className="h-8 w-auto" textColor="#111827" />
-            <div className="h-8 w-px bg-gray-300" />
-            <div>
-              <p className="text-lg font-semibold text-gray-900">{greeting}!</p>
-              <p className="text-sm text-gray-500">
-                Live information wall for teams, guests, and leadership.
-              </p>
-            </div>
+    <div className="w-screen h-screen max-h-[100vh] bg-background text-gray-800 overflow-hidden flex flex-col">
+      <header className="flex items-center justify-between shrink-0 px-3 py-2 h-[10vh] min-h-[48px] max-h-[80px]">
+        <div className="flex items-center gap-4 sm:gap-6">
+          <AumovioLogo className="h-6 w-auto sm:h-8" textColor="#111827" />
+          <div className="h-6 w-px bg-gray-300 sm:h-8" />
+          <div className="min-w-0">
+            <p className="text-base font-semibold text-gray-900 truncate sm:text-lg">{greeting}!</p>
+            <p className="text-xs text-gray-500 truncate sm:text-sm">
+              Live information wall for teams, guests, and leadership.
+            </p>
           </div>
+        </div>
 
-          <div className="hidden md:flex items-center gap-2 text-sm text-gray-600">
+        <div className="hidden md:flex items-center gap-2 text-sm text-gray-600 shrink-0">
             <div className="flex flex-col items-end">
               <span className="uppercase tracking-[0.2em] text-xs text-gray-400">Department</span>
               <span className="font-medium text-gray-800">{selectedTeam}</span>
@@ -209,40 +209,39 @@ function App() {
               <span className="text-lg" aria-hidden>⏻</span>
             </button>
           </div>
-        </header>
+      </header>
 
-        <main className="flex-1 grid grid-cols-[minmax(0,1fr)_minmax(0,320px)] gap-4 min-h-0 px-4 pb-4">
-          <section className="flex flex-col gap-4 min-h-0">
-            <div className="flex-1 rounded-2xl bg-surface border border-gray-200 shadow-sm overflow-hidden min-h-0">
-              <SlidePlayer slides={playlist.slides} />
+      <main className="flex-1 min-h-0 grid grid-cols-[minmax(0,3fr)_minmax(0,0.92fr)] gap-2 sm:gap-3 px-2 pb-2 sm:px-4 sm:pb-4 overflow-hidden">
+        <section className="flex flex-col gap-2 sm:gap-3 min-h-0 min-w-0 overflow-hidden">
+          <div className="flex-[5] min-h-0 rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm overflow-hidden">
+            <SlidePlayer slides={playlist.slides} />
+          </div>
+          <div className="flex-[1] min-h-0 grid grid-cols-2 gap-2 sm:gap-3 overflow-hidden">
+            <div className="min-w-0 min-h-0 flex flex-col overflow-hidden">
+              <VisitorsCarousel sections={sectionsContent} />
             </div>
+            <div className="min-w-0 min-h-0 flex flex-col overflow-hidden">
+              <StatusDashboard sections={sectionsContent} />
+            </div>
+          </div>
+        </section>
 
-            <div className="grid grid-cols-2 gap-3 items-stretch">
-              <div className="min-w-0 min-h-0 flex flex-col">
-                <VisitorsCarousel sections={sectionsContent} />
-              </div>
-              <div className="min-w-0 min-h-0 flex flex-col">
-                <StatusDashboard sections={sectionsContent} />
-              </div>
-            </div>
-          </section>
-
-          <aside className="flex flex-col gap-3 min-h-0 content-start">
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <Clock />
-            </div>
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <WeatherPanel announcements={sectionsContent.announcements} />
-            </div>
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <InfoCarousel sections={sectionsContent} />
-            </div>
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <CanteenRestaurantBlock canteenMenu={sectionsContent.canteen_menu} traffic={sectionsContent.traffic} />
-            </div>
-          </aside>
-        </main>
-      </div>
+        <aside className="flex flex-col gap-2 sm:gap-3 min-h-0 min-w-0 overflow-y-auto">
+          <div className="shrink-0 rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full">
+            <Clock />
+          </div>
+          <div className="flex-[1.35] min-h-0 rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm px-3 py-2 sm:px-4 sm:py-3 w-full overflow-hidden flex flex-col">
+            <WeatherPanel announcements={sectionsContent.announcements} />
+          </div>
+          <div className="flex-[0.74] min-h-0 max-h-[33vh] rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm px-2 py-1.5 sm:px-3 sm:py-2 w-full overflow-hidden flex flex-col">
+            <InfoCarousel sections={sectionsContent} />
+          </div>
+          <div className="shrink-0 rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm px-2 py-1.5 sm:px-3 sm:py-2 w-full">
+            <CanteenRestaurantBlock canteenMenu={sectionsContent.canteen_menu} traffic={sectionsContent.traffic} />
+          </div>
+        </aside>
+      </main>
+      <StretchingPopup sections={sectionsContent} now={now} />
     </div>
   );
 }

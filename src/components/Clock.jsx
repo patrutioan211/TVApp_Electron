@@ -76,10 +76,10 @@ function Clock() {
   const { sunrise, sunset } = getSunriseSunset(now);
 
   return (
-    <div className="w-full flex flex-col gap-3">
+    <div className="w-full flex flex-col gap-3 min-h-0">
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="text-[0.65rem] uppercase tracking-[0.2em] text-gray-500">Current time</span>
+          <span className="text-xs uppercase tracking-[0.2em] text-gray-500">Current time</span>
           <div className={`flex items-baseline gap-2 tabular-nums ${styles.time}`}>
             <span className="text-4xl xl:text-5xl font-light">{time}</span>
             <span className="text-lg align-bottom">{seconds}</span>

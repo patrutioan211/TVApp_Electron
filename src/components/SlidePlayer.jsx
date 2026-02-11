@@ -9,6 +9,7 @@ import { getSlideDisplay } from '../utils/slideUtils.js';
  */
 function SlidePlayer({ slides }) {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loopCount, setLoopCount] = useState(0);
   const [isVisible, setIsVisible] = useState(true);
   const [slideStartTime, setSlideStartTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
@@ -34,16 +35,24 @@ function SlidePlayer({ slides }) {
     : durationSeconds * 1000;
   const cooldownPercent = Math.max(0, Math.min(100, 100 - (elapsed / durationMs) * 100));
 
+  const scheduleNextSlide = () => {
+    timerRef.current = setTimeout(goNext, durationMs);
+  };
+
   const goNext = () => {
+    if (!slides || slides.length <= 1) {
+      setLoopCount((c) => c + 1);
+      setSlideStartTime(Date.now());
+      setElapsed(0);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      scheduleNextSlide();
+      return;
+    }
     setIsVisible(false);
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
       setIsVisible(true);
     }, 700);
-  };
-
-  const scheduleNextSlide = () => {
-    timerRef.current = setTimeout(goNext, durationMs);
   };
 
   useEffect(() => {
@@ -87,6 +96,7 @@ function SlidePlayer({ slides }) {
         }`}
       >
         <Slide
+          key={slides && slides.length <= 1 ? `loop-${loopCount}` : currentIndex}
           slide={currentSlide}
           onSlideDone={isDocImages ? goNext : undefined}
         />
@@ -96,7 +106,7 @@ function SlidePlayer({ slides }) {
       <div className="absolute bottom-0 left-0 right-0 px-4 pb-3">
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <span className="text-[0.6rem] text-white/90 tabular-nums drop-shadow">
-            {Math.ceil((durationMs - elapsed) / 1000)}s
+            {Math.max(0, Math.ceil((durationMs - elapsed) / 1000))}s
           </span>
           <span className="text-[0.6rem] text-white/80 drop-shadow">
             {currentIndex + 1} / {slides.length}

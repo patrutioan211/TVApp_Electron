@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const INTERVAL_MS = 10 * 1000; // 10s for testing (use 45 * 1000 for production)
-
 const CUSTOMER_FEEDBACK = [
   { client: 'AutoTech GmbH', quote: 'Outstanding partnership. The team delivered beyond our expectations and the integration was seamless.' },
   { client: 'Mobility Solutions', quote: 'Professional and responsive. They understood our automotive requirements from day one.' },
@@ -31,6 +29,26 @@ const REMINDER_HEALTHY_SECTIONS = [
   { title: 'Stay hydrated', text: 'Keep a bottle of water at your desk. Hydration supports concentration and overall well-being.' },
   { title: 'Simple stretching', text: 'A few minutes of stretching keeps muscles relaxed and helps prevent tension. Your body will thank you.' }
 ];
+
+/** Format 24h "HH:mm" as "h:mm AM/PM". */
+function formatTimeAMPM(timeStr) {
+  if (!timeStr || typeof timeStr !== 'string') return '';
+  const parts = timeStr.trim().slice(0, 5).split(':');
+  const h24 = parseInt(parts[0], 10);
+  const m = parts[1] ? parseInt(parts[1], 10) : 0;
+  if (Number.isNaN(h24)) return timeStr;
+  const h12 = h24 % 12 || 12;
+  const period = h24 < 12 ? 'AM' : 'PM';
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+/** Duration from dashboard (e.g. "2", "10") → "2 min", "10 min" for display. */
+function formatDurationMin(str) {
+  if (!str || typeof str !== 'string') return '10 min';
+  const num = parseInt(String(str).replace(/\D/g, ''), 10);
+  if (Number.isNaN(num) || num < 1) return '10 min';
+  return num === 1 ? '1 min' : `${num} min`;
+}
 
 /** One index per calendar day (same day = same quote/fact/word). */
 function getDayIndex() {
@@ -94,19 +112,27 @@ const CATEGORY_LABELS = {
   quote_of_day: 'Quote of the day',
   did_you_know: 'Did you know',
   word_of_day: 'Word of the day',
-  reminder_healthy: 'Reminder healthy (11:45 – 10 min stretching live)'
+  reminder_healthy: 'Stay healthy'
 };
 
 export default function VisitorsCarousel({ sections = {} }) {
+  const cooldownSeconds = Math.max(5, Math.min(3600, Number(sections.info_section?.cooldownSeconds) || 10));
+  const INTERVAL_MS = cooldownSeconds * 1000;
   const info = sections.info_section || {};
   const reminderHealthyFromInfo = (info.reminderHealthy && Array.isArray(info.reminderHealthy)) ? info.reminderHealthy : [];
   const stretchingItems = reminderHealthyFromInfo.length > 0
     ? reminderHealthyFromInfo
-    : (sections.stretching?.items && Array.isArray(sections.stretching.items)) ? sections.stretching.items : REMINDER_HEALTHY_SECTIONS;
+    : (sections?.stretching?.items && Array.isArray(sections.stretching.items)) ? sections.stretching.items : REMINDER_HEALTHY_SECTIONS;
   const customerFeedback = (info.customerFeedback && Array.isArray(info.customerFeedback)) ? info.customerFeedback : CUSTOMER_FEEDBACK;
   const quotesOfDayRaw = (info.quotesOfDay && Array.isArray(info.quotesOfDay)) ? info.quotesOfDay : QUOTES_OF_DAY;
   const didYouKnow = (info.didYouKnow && Array.isArray(info.didYouKnow)) ? info.didYouKnow : DID_YOU_KNOW;
   const wordOfDay = (info.wordOfDay && Array.isArray(info.wordOfDay)) ? info.wordOfDay : WORD_OF_DAY;
+
+  const stretchingFromSection = sections?.stretching?.items?.[0];
+  const hasStretchingTime = stretchingFromSection?.time && stretchingFromSection?.duration;
+  const reminderHealthyLabel = hasStretchingTime
+    ? `Stretching Time - ${formatTimeAMPM(stretchingFromSection.time)} (${formatDurationMin(stretchingFromSection.duration)})`
+    : ((stretchingFromSection?.title || '').trim() || CATEGORY_LABELS.reminder_healthy);
 
   const pageCounts = [
     customerFeedback.length,
@@ -120,6 +146,7 @@ export default function VisitorsCarousel({ sections = {} }) {
   const [catIndex, itemIndex, lastTick] = useCarousel(() => pageCounts, INTERVAL_MS);
   const countdown = useCountdown(lastTick, INTERVAL_MS);
   const category = CATEGORIES[catIndex];
+  const categoryLabel = category === 'reminder_healthy' ? reminderHealthyLabel : CATEGORY_LABELS[category];
 
   const renderContent = () => {
     switch (category) {
@@ -127,9 +154,9 @@ export default function VisitorsCarousel({ sections = {} }) {
         const item = customerFeedback[itemIndex];
         if (!item) return null;
         return (
-          <div className="space-y-1.5">
-            <p className="text-sm font-semibold text-gray-800">{item.client}</p>
-            <p className="text-sm text-gray-600 leading-snug italic">&ldquo;{item.quote}&rdquo;</p>
+          <div className="space-y-1.5 text-left w-full">
+            <p className="text-base font-semibold text-gray-800 truncate">{item.client}</p>
+            <p className="text-sm text-gray-600 leading-snug italic line-clamp-3">&ldquo;{item.quote}&rdquo;</p>
           </div>
         );
       }
@@ -140,7 +167,7 @@ export default function VisitorsCarousel({ sections = {} }) {
         if (!quote) return null;
         const text = typeof quote === 'string' ? quote : (quote.quote != null ? quote.quote : quote.text || '');
         return (
-          <p className="text-sm text-gray-700 leading-snug italic">&ldquo;{text}&rdquo;</p>
+          <p className="text-sm text-gray-700 leading-snug italic line-clamp-3 text-left w-full">&ldquo;{text}&rdquo;</p>
         );
       }
       case 'did_you_know': {
@@ -148,7 +175,7 @@ export default function VisitorsCarousel({ sections = {} }) {
         if (!item) return null;
         const fact = item.fact != null ? item.fact : (typeof item === 'string' ? item : '');
         return (
-          <p className="text-sm text-gray-600 leading-snug">{fact}</p>
+          <p className="text-sm text-gray-600 leading-snug line-clamp-3 text-left w-full">{fact}</p>
         );
       }
       case 'word_of_day': {
@@ -157,19 +184,19 @@ export default function VisitorsCarousel({ sections = {} }) {
         const word = item.word != null ? item.word : '';
         const meaning = item.meaning != null ? item.meaning : '';
         return (
-          <div className="space-y-1.5">
-            <p className="text-base font-semibold text-gray-900">{word}</p>
-            <p className="text-sm text-gray-600 leading-snug">{meaning}</p>
+          <div className="space-y-1.5 text-left w-full">
+            <p className="text-base font-semibold text-gray-900 truncate">{word}</p>
+            <p className="text-sm text-gray-600 leading-snug line-clamp-3">{meaning}</p>
           </div>
         );
       }
       case 'reminder_healthy': {
         return (
-          <div className="space-y-2">
+          <div className="space-y-1.5 text-left w-full">
             {stretchingItems.map((s, i) => (
               <div key={i} className="flex gap-2">
-                <span className="text-[0.65rem] font-semibold text-emerald-600 shrink-0">{s.title}</span>
-                <p className="text-xs text-gray-600 leading-snug">{s.text}</p>
+                <span className="text-sm font-semibold text-emerald-600 shrink-0">{s.title}</span>
+                <p className="text-sm text-gray-600 leading-snug line-clamp-2 min-w-0">{s.text ?? s.subtitle ?? ''}</p>
               </div>
             ))}
           </div>
@@ -181,13 +208,15 @@ export default function VisitorsCarousel({ sections = {} }) {
   };
 
   return (
-    <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-2 flex flex-col min-h-[5.5rem] h-full flex-1 min-h-0">
-      <div className="flex items-center justify-between gap-6 mb-3">
-        <span className="text-xs uppercase tracking-[0.2em] text-gray-500">{CATEGORY_LABELS[category]}</span>
-        <span className="text-[0.6rem] text-gray-400 tabular-nums shrink-0">{countdown}s</span>
+    <div className="rounded-xl bg-surface border border-gray-200 shadow-sm px-3 py-2 flex flex-col min-h-0 h-full flex-1 overflow-hidden">
+      <div className="flex items-center justify-between gap-2 mb-2 shrink-0">
+        <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate">{categoryLabel}</span>
+        <span className="text-[0.65rem] text-gray-400 tabular-nums shrink-0">{countdown}s</span>
       </div>
-      <div className="flex-1 min-h-0 text-gray-800 pt-0.5">
-        {renderContent()}
+      <div className="flex-1 min-h-0 overflow-hidden pt-1 flex justify-center items-start">
+        <div className="w-full max-w-full min-w-0 text-gray-800 leading-snug text-left">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );

@@ -11,10 +11,21 @@ const ANNOUNCEMENTS_DEFAULT = [
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 min
 
+function toAnnouncementText(raw) {
+  if (typeof raw === 'string' && raw.trim()) return raw.trim();
+  if (raw && typeof raw === 'object')
+    return String(raw.text ?? raw.content ?? raw.body ?? raw.title ?? '').trim();
+  return '';
+}
+
 function WeatherPanel({ announcements: announcementsFromWorkspace }) {
-  const ANNOUNCEMENTS = (announcementsFromWorkspace?.items && Array.isArray(announcementsFromWorkspace.items) && announcementsFromWorkspace.items.length > 0)
+  const rawItems = (announcementsFromWorkspace?.items && Array.isArray(announcementsFromWorkspace.items))
     ? announcementsFromWorkspace.items
     : ANNOUNCEMENTS_DEFAULT;
+  const ANNOUNCEMENTS = (() => {
+    const normalized = rawItems.map(toAnnouncementText).filter(Boolean);
+    return normalized.length > 0 ? normalized : ANNOUNCEMENTS_DEFAULT;
+  })();
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,8 +56,9 @@ function WeatherPanel({ announcements: announcementsFromWorkspace }) {
     };
   }, []);
 
-  const COOLDOWN_MS = 2 * 60 * 1000;
-  const visibleCount = 2;
+  const cooldownSeconds = Math.max(5, Math.min(3600, Number(announcementsFromWorkspace?.cooldownSeconds) || 120));
+  const COOLDOWN_MS = cooldownSeconds * 1000;
+  const visibleCount = 1;
   const [announcementIndex, setAnnouncementIndex] = useState(0);
   const [cooldownStart, setCooldownStart] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
@@ -63,12 +75,13 @@ function WeatherPanel({ announcements: announcementsFromWorkspace }) {
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [cooldownStart]);
+  }, [cooldownStart, COOLDOWN_MS]);
 
   const cooldownPercent = Math.max(0, Math.min(100, 100 - (elapsed / COOLDOWN_MS) * 100));
   const visibleAnnouncements = Array.from({ length: visibleCount }, (_, k) => {
     const idx = (announcementIndex + k) % ANNOUNCEMENTS.length;
-    return { id: `${announcementIndex}-${k}`, text: ANNOUNCEMENTS[idx] };
+    const text = ANNOUNCEMENTS[idx] || '';
+    return { id: `${announcementIndex}-${k}`, text };
   });
 
   const details = weather
@@ -84,82 +97,81 @@ function WeatherPanel({ announcements: announcementsFromWorkspace }) {
       ];
 
   return (
-    <div className="w-full flex flex-col gap-4">
-      <div className="flex items-start justify-between">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[0.65rem] uppercase tracking-[0.2em] text-gray-500">Local weather</span>
-          <span className="text-sm font-medium text-gray-700">
+    <div className="w-full flex flex-col min-h-0 overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-1.5">
+      <div className="flex items-start justify-between gap-1">
+        <div className="flex flex-col gap-0 min-w-0">
+          <span className="text-xs uppercase tracking-[0.2em] font-light text-gray-500">Local weather</span>
+          <span className="text-sm font-medium text-gray-700 truncate">
             {weather?.location ?? 'Aumovio Sibiu - Strada Salzburg'}
           </span>
         </div>
-        <div className="h-12 w-12 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl">
+        <div className="h-10 w-10 rounded-lg bg-amber-100 border border-amber-200 flex items-center justify-center text-xl shrink-0">
           {weather?.icon ?? '☀'}
         </div>
       </div>
 
       {loading && !weather && !error && (
-        <p className="text-xs text-gray-500">Loading weather…</p>
+        <p className="text-[0.6rem] text-gray-500 shrink-0">Loading…</p>
       )}
       {error && !weather && (
-        <p className="text-xs text-amber-700">Weather temporarily unavailable.</p>
+        <p className="text-[0.6rem] text-amber-700 shrink-0">Weather unavailable.</p>
       )}
       {weather && (
         <>
-          <div className="flex items-end gap-3">
-            <span className="text-4xl font-light tabular-nums text-gray-900">{weather.temperature}</span>
+          <div className="flex items-end gap-1.5 shrink-0">
+            <span className="text-2xl font-light tabular-nums text-gray-900">{weather.temperature}</span>
             <div className="flex flex-col gap-0">
               <span className="text-sm font-medium text-gray-800">{weather.condition}</span>
               <span className="text-xs text-gray-500">{weather.feelsLike}</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-2">
-            {/* +1h … +4h only; current weather is shown above */}
+          <div className="grid grid-cols-4 gap-1.5 shrink-0">
             {(weather.next4Hours || []).map((h) => (
-              <div key={h.time} className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-2 flex flex-col items-center gap-0.5">
-                <span className="text-[0.6rem] text-gray-500">{h.time}</span>
-                <span className="text-lg">{h.icon}</span>
-                <span className="text-sm font-semibold text-gray-800">{h.temp}</span>
-                <span className="text-[0.6rem] text-gray-500 text-center leading-tight">{h.cond}</span>
+              <div key={h.time} className="rounded border border-gray-200 bg-gray-50 px-1.5 py-1 flex flex-col items-center gap-0.5">
+                <span className="text-[0.65rem] text-gray-500">{h.time}</span>
+                <span className="text-base">{h.icon}</span>
+                <span className="text-xs font-semibold text-gray-800">{h.temp}</span>
               </div>
             ))}
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-1.5 shrink-0">
             {details.map((item) => (
-              <div key={item.label} className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 flex flex-col items-center justify-center min-h-[3rem]">
-                <span className="text-[0.6rem] uppercase tracking-wide text-gray-500">{item.label}</span>
+              <div key={item.label} className="rounded border border-gray-200 bg-gray-50 px-1.5 py-1 flex flex-col items-center justify-center min-h-0">
+                <span className="text-[0.6rem] uppercase text-gray-500">{item.label}</span>
                 <p className="text-xs font-medium text-gray-800">{item.value}</p>
               </div>
             ))}
           </div>
         </>
       )}
+      </div>
 
-      <div className="border-t border-gray-100 pt-3">
-        <div className="flex items-center justify-between gap-2 mb-2">
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            <span className="text-[0.65rem] uppercase tracking-[0.15em] font-semibold text-gray-600">Announcements</span>
-          </div>
-          <span className="text-[0.6rem] text-gray-400 tabular-nums">
-            {Math.ceil((COOLDOWN_MS - elapsed) / 1000)}s
-          </span>
+      <div className="border-t border-gray-100 pt-3 flex-1 min-h-0 flex flex-col mt-1.5">
+        <div className="flex items-center justify-between gap-2 mb-1 shrink-0">
+          <span className="text-xs uppercase tracking-[0.15em] font-semibold text-gray-600">Announcements</span>
+          <span className="text-[0.6rem] text-gray-400 tabular-nums">{Math.ceil((COOLDOWN_MS - elapsed) / 1000)}s</span>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden mb-3">
+        <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden mb-2 shrink-0">
           <div
             className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear"
             style={{ width: `${cooldownPercent}%` }}
           />
         </div>
-        <div className="flex flex-col gap-2 min-h-[3.5rem] mt-1">
-          {visibleAnnouncements.map((a) => (
-            <div
-              key={a.id}
-              className="text-sm font-medium text-gray-800 leading-snug announcement-html"
-              dangerouslySetInnerHTML={{ __html: typeof a.text === 'string' ? a.text : (a.text || '') }}
-            />
-          ))}
+        <div className="flex-1 min-h-[4.5rem] flex flex-col gap-1.5 overflow-y-auto pt-0.5">
+          {visibleAnnouncements.map((a) => {
+            const raw = (a.text || '').trim();
+            const html = raw || '—';
+            return (
+              <div
+                key={a.id}
+                className="text-sm font-medium text-gray-800 leading-snug announcement-html shrink-0"
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            );
+          })}
         </div>
       </div>
     </div>

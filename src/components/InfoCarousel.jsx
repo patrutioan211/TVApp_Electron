@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const COOLDOWN_MS = 20 * 1000; // 20 sec for testing (use 5 * 60 * 1000 for production)
-
 const NEW_COLLEAGUES = [
   { name: 'Maria Popescu', role: 'Software Engineer', funFact: 'Loves hiking and board games' },
   { name: 'Andrei Ionescu', role: 'Product Designer', funFact: 'Former jazz pianist' },
@@ -140,6 +138,8 @@ function formatEventWhen(dateStr, timeStr) {
 
 function InfoCarousel({ sections = {} }) {
   const ann = sections.anniversary || {};
+  const cooldownSeconds = Math.max(5, Math.min(3600, Number(ann.cooldownSeconds) || 20));
+  const COOLDOWN_MS = cooldownSeconds * 1000;
   const people = Array.isArray(ann.people) ? ann.people : [];
   const employeeOfMonthNames = Array.isArray(ann.employeeOfMonth) ? ann.employeeOfMonth.filter(Boolean) : [];
   const jobOpenings = Array.isArray(ann.jobOpenings) ? ann.jobOpenings : [];
@@ -235,20 +235,20 @@ function InfoCarousel({ sections = {} }) {
   const renderContent = () => {
     switch (categories[categoryIndex]) {
       case 'new_colleagues': {
-        if (NEW_COLLEAGUES_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No new colleagues.</p>;
+        if (NEW_COLLEAGUES_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No new colleagues.</p>;
         const take = 2;
         const start = (itemIndex * take) % Math.max(1, NEW_COLLEAGUES_USE.length);
         const items = NEW_COLLEAGUES_USE.length >= 2
           ? [NEW_COLLEAGUES_USE[start % NEW_COLLEAGUES_USE.length], NEW_COLLEAGUES_USE[(start + 1) % NEW_COLLEAGUES_USE.length]]
           : [NEW_COLLEAGUES_USE[0]];
         return (
-          <div className="space-y-3">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((p) => (
-              <div key={p.name} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 border border-gray-100">
-                <AvatarPlaceholder name={p.name} />
-                <div className="min-w-0">
+              <div key={p.name} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 flex-1 min-h-0">
+                <AvatarPlaceholder name={p.name} className="w-9 h-9 text-xs" />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900">{p.name}</p>
-                  <p className="text-xs text-accent font-medium mt-1">Good luck!</p>
+                  <p className="text-xs text-accent font-medium mt-0.5">Good luck!</p>
                 </div>
               </div>
             ))}
@@ -258,7 +258,7 @@ function InfoCarousel({ sections = {} }) {
       case 'birthdays': {
         if (upcomingBirthdays.length === 0) {
           return (
-            <p className="text-sm text-gray-500 py-2">No birthdays in the next few days.</p>
+            <p className="text-xs text-gray-500 py-2">No birthdays in the next few days.</p>
           );
         }
         const start = (itemIndex * 2) % upcomingBirthdays.length;
@@ -266,17 +266,17 @@ function InfoCarousel({ sections = {} }) {
           ? [upcomingBirthdays[start], upcomingBirthdays[(start + 1) % upcomingBirthdays.length]]
           : [upcomingBirthdays[start]];
         return (
-          <div className="space-y-3">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((person, i) => {
               const msgIdx = (categoryIndex + itemIndex + start + i) % BIRTHDAY_MESSAGES.length;
               const msg = BIRTHDAY_MESSAGES[msgIdx];
               return (
-                <div key={person.name} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 border border-gray-100">
-                  <AvatarPlaceholder name={person.name} />
-                  <div className="min-w-0">
+                <div key={person.name} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 flex-1 min-h-0">
+                  <AvatarPlaceholder name={person.name} className="w-9 h-9 text-xs" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">{person.name}</p>
                     <p className="text-xs text-gray-600">Birthday: {formatBirthday(person.month, person.day)}</p>
-                    <p className="text-xs text-gray-700 mt-1">{msg}</p>
+                    <p className="text-xs text-gray-700 mt-0.5">{msg}</p>
                   </div>
                 </div>
               );
@@ -287,7 +287,7 @@ function InfoCarousel({ sections = {} }) {
       case 'work_anniversary': {
         if (upcomingWorkAnniversaries.length === 0) {
           return (
-            <p className="text-sm text-gray-500 py-2">No work anniversaries this month.</p>
+            <p className="text-xs text-gray-500 py-2">No work anniversaries this month.</p>
           );
         }
         const start = (itemIndex * 2) % upcomingWorkAnniversaries.length;
@@ -295,17 +295,17 @@ function InfoCarousel({ sections = {} }) {
           ? [upcomingWorkAnniversaries[start], upcomingWorkAnniversaries[(start + 1) % upcomingWorkAnniversaries.length]]
           : [upcomingWorkAnniversaries[start]];
         return (
-          <div className="space-y-3">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((person, i) => {
               const msgIdx = (categoryIndex + itemIndex + start + i) % WORK_ANNIVERSARY_MESSAGES_DEFAULT.length;
               const msg = WORK_ANNIVERSARY_MESSAGES_DEFAULT[msgIdx];
               return (
-                <div key={person.name} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 border border-gray-100">
-                  <AvatarPlaceholder name={person.name} />
-                  <div className="min-w-0">
+                <div key={person.name} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 flex-1 min-h-0">
+                  <AvatarPlaceholder name={person.name} className="w-9 h-9 text-xs" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">{person.name}</p>
-                    <p className="text-xs text-gray-600">{person.years} years in the company this month</p>
-                    <p className="text-xs text-gray-700 mt-1">{msg}</p>
+                    <p className="text-xs text-gray-600">{person.years} years this month</p>
+                    <p className="text-xs text-gray-700 mt-0.5">{msg}</p>
                   </div>
                 </div>
               );
@@ -314,20 +314,20 @@ function InfoCarousel({ sections = {} }) {
         );
       }
       case 'employee_of_month': {
-        if (EMPLOYEES_OF_MONTH_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No employee of the month selected.</p>;
+        if (EMPLOYEES_OF_MONTH_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No employee of the month.</p>;
         const start = (itemIndex * 2) % EMPLOYEES_OF_MONTH_USE.length;
         const items = [EMPLOYEES_OF_MONTH_USE[start], EMPLOYEES_OF_MONTH_USE[(start + 1) % EMPLOYEES_OF_MONTH_USE.length]];
         return (
-          <div className="space-y-3">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((person, i) => {
               const msgIdx = (categoryIndex + itemIndex + start + i) % EMPLOYEE_OF_MONTH_APPRECIATION.length;
               const msg = EMPLOYEE_OF_MONTH_APPRECIATION[msgIdx];
               return (
-                <div key={person.name} className="flex items-center gap-3 p-2 rounded-lg bg-amber-50 border border-amber-100">
-                  <AvatarPlaceholder name={person.name} className="w-12 h-12" />
-                  <div className="min-w-0">
+                <div key={person.name} className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-amber-50 border border-amber-100 flex-1 min-h-0">
+                  <AvatarPlaceholder name={person.name} className="w-9 h-9 text-xs" />
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold text-gray-900">{person.name}</p>
-                    <p className="text-xs text-amber-800 mt-1">{msg}</p>
+                    <p className="text-xs text-amber-800 mt-0.5">{msg}</p>
                   </div>
                 </div>
               );
@@ -336,30 +336,30 @@ function InfoCarousel({ sections = {} }) {
         );
       }
       case 'job_openings': {
-        if (JOB_OPENINGS_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No job openings.</p>;
+        if (JOB_OPENINGS_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No job openings.</p>;
         const start = (itemIndex * 2) % JOB_OPENINGS_USE.length;
         const items = [JOB_OPENINGS_USE[start], JOB_OPENINGS_USE[(start + 1) % JOB_OPENINGS_USE.length]];
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((j) => (
-              <div key={(j.title || '') + (j.team || '')} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+              <div key={(j.title || '') + (j.team || '')} className="py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 flex-1 min-h-0 flex flex-col justify-center">
                 <p className="text-sm font-semibold text-gray-900">{j.title}</p>
-                <p className="text-xs text-gray-600">{j.team}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{j.team}</p>
               </div>
             ))}
           </div>
         );
       }
       case 'events': {
-        if (EVENTS_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No events.</p>;
+        if (EVENTS_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No events.</p>;
         const start = (itemIndex * 2) % EVENTS_USE.length;
         const items = [EVENTS_USE[start % EVENTS_USE.length], EVENTS_USE[(start + 1) % EVENTS_USE.length]];
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((e) => (
-              <div key={e.name + (e.when || '')} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+              <div key={e.name + (e.when || '')} className="py-1.5 px-2 rounded-lg bg-gray-50 border border-gray-100 flex-1 min-h-0 flex flex-col justify-center">
                 <p className="text-sm font-semibold text-gray-900">{e.name}</p>
-                <p className="text-xs text-gray-600">{e.when}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{e.when}</p>
               </div>
             ))}
           </div>
@@ -371,18 +371,18 @@ function InfoCarousel({ sections = {} }) {
   };
 
   return (
-    <div className="w-full flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[0.65rem] uppercase tracking-[0.15em] font-semibold text-gray-600">{categoryLabel}</span>
+    <div className="w-full flex flex-col gap-1 min-h-0 overflow-hidden h-full">
+      <div className="flex items-center justify-between gap-1 shrink-0 py-0.5">
+        <span className="text-xs uppercase tracking-[0.1em] font-semibold text-gray-600 truncate">{categoryLabel}</span>
         <span className="text-[0.6rem] text-gray-400 tabular-nums">{Math.ceil((COOLDOWN_MS - elapsed) / 1000)}s</span>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+      <div className="h-1 w-full rounded-full bg-gray-200 overflow-hidden shrink-0">
         <div
           className="h-full rounded-full bg-accent transition-[width] duration-1000 ease-linear"
           style={{ width: `${cooldownPercent}%` }}
         />
       </div>
-      <div className="min-h-[7rem]">
+      <div className="flex-1 min-h-0 overflow-y-auto text-sm py-1">
         {renderContent()}
       </div>
     </div>

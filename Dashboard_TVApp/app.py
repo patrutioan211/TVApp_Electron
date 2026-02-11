@@ -164,6 +164,28 @@ def put_team_section(name, section_id):
         if data is None:
             return jsonify({"error": "JSON body required"}), 400
         content_path = section_dir / "content.json"
+        if section_id == "stretching":
+            old_video_path = None
+            if content_path.exists():
+                try:
+                    old_content = json.loads(content_path.read_text(encoding="utf-8"))
+                    items = old_content.get("items") if isinstance(old_content.get("items"), list) else []
+                    if items and isinstance(items[0], dict):
+                        old_video = (items[0].get("video") or "").strip().replace("\\", "/")
+                        if old_video.startswith("stretching/"):
+                            old_video_path = team_dir / old_video
+                except Exception:
+                    pass
+            new_video = ""
+            new_items = data.get("items") if isinstance(data.get("items"), list) else []
+            if new_items and isinstance(new_items[0], dict):
+                new_video = (new_items[0].get("video") or "").strip().replace("\\", "/")
+            if old_video_path and old_video_path.exists() and old_video_path.is_file():
+                if not new_video or not new_video.startswith("stretching/") or old_video_path != (team_dir / new_video.replace("\\", "/")):
+                    try:
+                        old_video_path.unlink()
+                    except Exception:
+                        pass
         content_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         return jsonify({"ok": True})
     except ValueError as e:
@@ -259,7 +281,13 @@ def upload_team_file(name):
         if not ext:
             ext = ".jpg" if kind == "image" else ".mp4"
         unique = f"{base}_{uuid.uuid4().hex[:8]}{ext}"
-        if kind == "image":
+        section = (request.form.get("section") or "").strip().lower()
+        if section == "stretching" and kind == "video":
+            folder = "stretching"
+            allowed = ALLOWED_VIDEO | {"application/octet-stream"}
+            if f.content_type and f.content_type not in allowed:
+                return jsonify({"error": "invalid video type"}), 400
+        elif kind == "image":
             folder = "photos"
             if f.content_type and f.content_type not in ALLOWED_IMAGE:
                 return jsonify({"error": "invalid image type"}), 400

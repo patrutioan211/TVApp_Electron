@@ -18,6 +18,8 @@ const authService = require('./authService');
 const isDev = process.env.USE_DEV_SERVER === '1';
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 
+app.setName('AumovioTVApp');
+
 // Scheme-uri înregistrate și în dev ca workspace:// să funcționeze (inclusiv video)
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, supportFetchAPI: true } },
@@ -32,10 +34,13 @@ function getBaseUrl() {
 
 function createAdminWindow() {
   const url = getBaseUrl() + '#/admin';
+  const adminIconPath = getAppIconPath();
   const adminWindow = new BrowserWindow({
     width: 1000,
     height: 700,
     autoHideMenuBar: true,
+    ...(adminIconPath && { icon: adminIconPath }),
+    title: 'AumovioTVApp',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -45,12 +50,36 @@ function createAdminWindow() {
   adminWindow.loadURL(url);
 }
 
+function getAppIconPath() {
+  const isWin = process.platform === 'win32';
+  const candidates = isWin
+    ? [
+        path.join(__dirname, 'icon.ico'),
+        path.join(__dirname, 'icons', 'icon.ico'),
+        path.join(__dirname, '..', 'public', 'icon.ico'),
+        path.join(__dirname, 'icon.png'),
+        path.join(__dirname, '..', 'public', 'icon.png')
+      ]
+    : [
+        path.join(__dirname, 'icon.png'),
+        path.join(__dirname, 'icons', 'icon.png'),
+        path.join(__dirname, '..', 'public', 'icon.png')
+      ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 function createWindow(loadUrl) {
+  const iconPath = getAppIconPath();
   mainWindow = new BrowserWindow({
     width: 1920,
     height: 1080,
     backgroundColor: '#f5f5f5',
     autoHideMenuBar: true,
+    ...(iconPath && { icon: iconPath }),
+    title: 'AumovioTVApp',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

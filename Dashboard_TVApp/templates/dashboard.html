@@ -372,6 +372,8 @@
       meeting_rooms: 'Meeting rooms',
       traffic: 'Traffic'
     };
+    const COOLDOWN_SECTION_IDS = ['announcements', 'anniversary', 'uptime_services', 'info_section', 'projects_info', 'meeting_rooms'];
+    const COOLDOWN_DEFAULTS = { announcements: 120, anniversary: 20, uptime_services: 120, info_section: 10, projects_info: 120, meeting_rooms: 60 };
     // Schema: listKey, columns, defaultItem. itemIsString | htmlEditor | emptySection | customAnniversary | multiListInfo | singleItem | maxItems
     const SECTION_SCHEMAS = {
       announcements: { listKey: 'items', itemIsString: true, htmlEditor: true, columns: [{ key: 'text', label: 'Text (HTML)' }], defaultItem: '' },
@@ -380,13 +382,14 @@
       uptime_services: { listKey: 'services', columns: [{ key: 'id', label: 'ID' }, { key: 'name', label: 'Nume serviciu' }, { key: 'statusUrl', label: 'Status URL' }], defaultItem: { id: '', name: '', statusUrl: '' } },
       info_section: { infoSectionEditor: true },
       projects_info: { listKey: 'projects', columns: [{ key: 'name', label: 'Nume' }, { key: 'start', label: 'Start' }, { key: 'end', label: 'End' }, { key: 'status', label: 'Status', type: 'select', options: ['normal', 'task_force', 'maintenance', 'change_request'] }, { key: 'icon', label: 'Icon', type: 'image' }], defaultItem: { name: '', start: '', end: '', status: 'normal', icon: '' } },
-      stretching: { listKey: 'items', singleItem: true, maxItems: 1, columns: [{ key: 'video', label: 'Video', type: 'video' }, { key: 'title', label: 'Titlu' }, { key: 'subtitle', label: 'Subtitlu' }], defaultItem: { video: '', title: '', subtitle: '' } },
+      stretching: { listKey: 'items', singleItem: true, maxItems: 1, columns: [{ key: 'video', label: 'Video', type: 'video' }, { key: 'title', label: 'Titlu' }, { key: 'subtitle', label: 'Subtitlu' }, { key: 'time', label: 'Ora (24h)', type: 'time' }, { key: 'duration', label: 'Durată (ex: 10 min)' }], defaultItem: { video: '', title: '', subtitle: '', time: '', duration: '' } },
       meeting_rooms: { listKey: 'rooms', columns: [{ key: 'name', label: 'Nume sală' }], defaultItem: { name: '' } },
       traffic: { listKey: 'destinations', maxItems: 3, columns: [{ key: 'destination', label: 'Destinație' }], defaultItem: { destination: '' }, originFixed: 'Aumovio Sibiu - Strada Salzburg' },
       projects_info: { listKey: 'projects', columns: [{ key: 'name', label: 'Nume' }, { key: 'start', label: 'Start' }, { key: 'end', label: 'End' }, { key: 'status', label: 'Status', type: 'select', options: ['normal', 'task_force', 'maintenance', 'change_request'] }, { key: 'icon', label: 'Icon', type: 'image' }], defaultItem: { name: '', start: '', end: '', status: 'normal', icon: '' } }
     };
     const SECTION_DEFAULTS = {
       announcements: {
+        cooldownSeconds: 120,
         items: [
           'Quarterly town hall today at 16:00, Sky Auditorium – all teams invited.',
           'New security badges required from next week. Collect at reception.',
@@ -397,6 +400,7 @@
       },
       canteen_menu: { slots: [{ time: '10:30', duration: '15 min' }, { time: '11:30', duration: '15 min' }], restaurant: { name: 'La Turn', tagline: 'Restaurant & Terrace — recomandat de echipa' } },
       anniversary: {
+        cooldownSeconds: 20,
         people: [
           { name: 'Laura Popa', birthday: '1990-03-15', newColleague: false, workStartDate: '2019-02-01' },
           { name: 'George Mihai', birthday: '1988-07-22', newColleague: false, workStartDate: '2021-02-01' },
@@ -413,6 +417,7 @@
         ]
       },
       uptime_services: {
+        cooldownSeconds: 120,
         services: [
           { id: 'github', name: 'GitHub', statusUrl: '', up: true },
           { id: 'jira', name: 'Jira', statusUrl: '', up: true },
@@ -422,6 +427,7 @@
         ]
       },
       info_section: {
+        cooldownSeconds: 10,
         customerFeedback: [
           { client: 'AutoTech GmbH', quote: 'Outstanding partnership. The team delivered beyond our expectations and the integration was seamless.' },
           { client: 'Mobility Solutions', quote: 'Professional and responsive. They understood our automotive requirements from day one.' },
@@ -449,6 +455,7 @@
         ]
       },
       projects_info: {
+        cooldownSeconds: 120,
         projects: [
           { name: 'Alpha', start: '2025-01-15', end: '2025-06-30', status: 'normal', icon: '' },
           { name: 'Beta', start: '2025-02-01', end: '2025-08-15', status: 'task_force', icon: '' },
@@ -458,6 +465,7 @@
       },
       stretching: { items: [] },
       meeting_rooms: {
+        cooldownSeconds: 60,
         rooms: [
           { name: 'Room A' },
           { name: 'Room B' },
@@ -706,6 +714,45 @@
       if (schema?.listKey) return [{ listKey: schema.listKey, itemIsString: schema.itemIsString, columns: schema.columns, defaultItem: schema.defaultItem, slotsAsString: schema.slotsAsString, arr: Array.isArray(data[schema.listKey]) ? data[schema.listKey] : [] }];
       return [];
     }
+    function readSectionCooldown(sectionId) {
+      if (!COOLDOWN_SECTION_IDS.includes(sectionId)) return undefined;
+      const card = document.querySelector('.section-card[data-section="' + sectionId + '"]');
+      if (!card) return undefined;
+      const inp = card.querySelector('[data-cooldown-input]');
+      if (!inp) return undefined;
+      const n = parseInt(inp.value, 10);
+      return (isNaN(n) || n < 1) ? COOLDOWN_DEFAULTS[sectionId] : n;
+    }
+    function appendCooldownRow(body, sectionId) {
+      if (!COOLDOWN_SECTION_IDS.includes(sectionId)) return;
+      const data = sectionData[sectionId] || SECTION_DEFAULTS[sectionId] || {};
+      const val = data.cooldownSeconds != null ? Number(data.cooldownSeconds) : COOLDOWN_DEFAULTS[sectionId];
+      const wrap = document.createElement('div');
+      wrap.className = 'section-cooldown-row';
+      wrap.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;';
+      wrap.innerHTML = '<label style="font-weight:600;font-size:0.85rem;">Cooldown (secunde)</label><input type="number" min="5" max="3600" step="1" data-cooldown-input value="' + escapeHtml(String(val)) + '" style="width:80px;" /><button type="button" class="small" data-cooldown-btn>Set cooldown</button>';
+      wrap.querySelector('[data-cooldown-input]').addEventListener('input', () => { if (typeof markUnsaved === 'function') markUnsaved(); });
+      const cooldownBtn = wrap.querySelector('[data-cooldown-btn]');
+      cooldownBtn.addEventListener('click', async () => {
+        if (!selectedTeam) { showMsg('Selectați o echipă.', false); return; }
+        cooldownBtn.disabled = true;
+        if (typeof setLoading === 'function') setLoading(true, 'Set cooldown...');
+        try {
+          const json = buildSectionJsonFromUI(sectionId);
+          const res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/section/' + encodeURIComponent(sectionId), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(json)
+          });
+          if (res.error) showMsg(res.error, false);
+          else { sectionData[sectionId] = json; showMsg('Cooldown salvat. Secțiune ' + SECTION_LABELS[sectionId] + '.', true); if (typeof setChangeStatus === 'function') setChangeStatus('saved_unpushed'); }
+        } finally {
+          cooldownBtn.disabled = false;
+          if (typeof setLoading === 'function') setLoading(false);
+        }
+      });
+      body.appendChild(wrap);
+    }
     function buildSectionJsonFromUI(sectionId) {
       const schema = SECTION_SCHEMAS[sectionId];
       const data = { ...(sectionData[sectionId] || SECTION_DEFAULTS[sectionId]) };
@@ -749,6 +796,8 @@
             time: timeEl ? (timeEl.value || '').slice(0, 5) : ''
           });
         });
+        const cooldownVal = readSectionCooldown(sectionId);
+        if (cooldownVal !== undefined) out.cooldownSeconds = cooldownVal;
         return out;
       }
       if (schema?.infoSectionEditor) {
@@ -784,6 +833,8 @@
           const textEl = row.querySelector('[data-col="text"]');
           out.reminderHealthy.push({ title: titleEl ? titleEl.value.trim() : '', text: textEl ? textEl.value.trim() : '' });
         });
+        const cooldownVal = readSectionCooldown(sectionId);
+        if (cooldownVal !== undefined) out.cooldownSeconds = cooldownVal;
         return out;
       }
       if (schema?.customEditor) {
@@ -878,6 +929,7 @@
           }
         });
       }
+      if (COOLDOWN_SECTION_IDS.includes(sectionId)) { const v = readSectionCooldown(sectionId); if (v !== undefined) data.cooldownSeconds = v; }
       return data;
     }
     function renderSectionListRows(sectionId, listKey, itemIsString, columns, defaultItem, slotsAsString, arr, htmlEditor) {
@@ -942,6 +994,7 @@
               const fd = new FormData();
               fd.append('file', fileInput.files[0]);
               fd.append('kind', col.type === 'video' ? 'video' : 'image');
+              if (sectionId === 'stretching' && col.type === 'video') fd.append('section', 'stretching');
               try {
                 const res = await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload', { method: 'POST', body: fd });
                 const data = await res.json();
@@ -960,6 +1013,21 @@
             wrap.appendChild(fileInput);
             wrap.appendChild(pathSpan);
             td.appendChild(wrap);
+          } else if (col.type === 'time' && !isStr) {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.dataset.col = col.key;
+            const raw = val[col.key] != null ? String(val[col.key]).trim() : '';
+            input.value = raw ? raw.slice(0, 5) : '';
+            input.addEventListener('input', () => {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              let a = sectionData[sectionId][listKey];
+              if (!Array.isArray(a)) a = [];
+              sectionData[sectionId][listKey] = a;
+              a[i] = a[i] || {}; a[i][col.key] = input.value;
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            td.appendChild(input);
           } else if (isStr && htmlEditor) {
             const toolbar = document.createElement('div');
             toolbar.style.marginBottom = '4px';
@@ -1045,6 +1113,7 @@
       const jobOpenings = Array.isArray(data.jobOpenings) ? data.jobOpenings : [];
       const events = Array.isArray(data.events) ? data.events : [];
       body.innerHTML = '';
+      appendCooldownRow(body, sectionId);
       const sub = (title, tableHeaders, rows, addLabel, listKey, defaultItem, rowRenderer, collapsible) => {
         const wrap = document.createElement('div');
         wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible collapsed' : '');
@@ -1290,6 +1359,7 @@
       const wordOfDay = Array.isArray(data.wordOfDay) ? data.wordOfDay : [];
       const reminderHealthy = Array.isArray(data.reminderHealthy) ? data.reminderHealthy : [];
       body.innerHTML = '';
+      appendCooldownRow(body, sectionId);
       function addBlock(title, listKey, columns, rows, defaultItem, rowRenderer, collapsible) {
         const wrap = document.createElement('div');
         wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible collapsed' : '');
@@ -1527,6 +1597,7 @@
       }
       const lists = getSectionList(sectionId);
       body.innerHTML = '';
+      if (COOLDOWN_SECTION_IDS.includes(sectionId)) appendCooldownRow(body, sectionId);
       if (schema?.originFixed) {
         const p = document.createElement('p');
         p.className = 'section-extra';
