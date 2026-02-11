@@ -11,7 +11,7 @@
     },
     {
       "duration": 60,
-      "enabled": false,
+      "enabled": true,
       "id": "slide-8",
       "src": "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
       "title": "HLS stream",
@@ -28,7 +28,7 @@
     },
     {
       "duration": 60,
-      "enabled": true,
+      "enabled": false,
       "id": "slide-1770727109898",
       "src": "videos/sample-5s_5e8bf827.mp4",
       "subtitle": "",
