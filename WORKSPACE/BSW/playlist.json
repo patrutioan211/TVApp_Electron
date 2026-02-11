@@ -28,7 +28,7 @@
     },
     {
       "duration": 60,
-      "enabled": false,
+      "enabled": true,
       "id": "slide-1770727109898",
       "src": "videos/sample-5s_5e8bf827.mp4",
       "subtitle": "",
