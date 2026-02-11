@@ -13,6 +13,7 @@ function App() {
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [teamCheckDone, setTeamCheckDone] = useState(false);
   const [playlist, setPlaylist] = useState({ slides: [] });
+  const [sectionsContent, setSectionsContent] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
@@ -64,12 +65,40 @@ function App() {
     }
   };
 
+  const loadSections = async () => {
+    if (!selectedTeam || !window.api?.getAllSectionsContent) return;
+    try {
+      const data = await window.api.getAllSectionsContent(selectedTeam);
+      setSectionsContent(data || {});
+    } catch (e) {
+      setSectionsContent({});
+    }
+  };
+
   useEffect(() => {
     if (!selectedTeam) return;
     loadPlaylist();
-    if (!window.api?.onPlaylistUpdated) return;
-    const unsubscribe = window.api.onPlaylistUpdated(() => loadPlaylist());
-    return () => unsubscribe?.();
+    loadSections();
+    let unsubscribe;
+    if (window.api?.onPlaylistUpdated) {
+      unsubscribe = window.api.onPlaylistUpdated(() => {
+        loadPlaylist();
+        loadSections();
+      });
+    }
+    const REFRESH_MS = 60 * 1000;
+    const interval = setInterval(() => {
+      try {
+        loadPlaylist();
+        loadSections();
+      } catch (e) {
+        console.error('[App] Refresh interval error:', e);
+      }
+    }, REFRESH_MS);
+    return () => {
+      clearInterval(interval);
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
   }, [selectedTeam]);
 
   if (typeof window !== 'undefined' && !window.api?.getPlaylist) {
@@ -190,10 +219,10 @@ function App() {
 
             <div className="grid grid-cols-2 gap-3 items-stretch">
               <div className="min-w-0 min-h-0 flex flex-col">
-                <VisitorsCarousel />
+                <VisitorsCarousel sections={sectionsContent} />
               </div>
               <div className="min-w-0 min-h-0 flex flex-col">
-                <StatusDashboard />
+                <StatusDashboard sections={sectionsContent} />
               </div>
             </div>
           </section>
@@ -203,13 +232,13 @@ function App() {
               <Clock />
             </div>
             <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <WeatherPanel />
-            </div>
-            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0 hidden">
-              <InfoCarousel />
+              <WeatherPanel announcements={sectionsContent.announcements} />
             </div>
             <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
-              <CanteenRestaurantBlock />
+              <InfoCarousel sections={sectionsContent} />
+            </div>
+            <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-3 w-full shrink-0">
+              <CanteenRestaurantBlock canteenMenu={sectionsContent.canteen_menu} traffic={sectionsContent.traffic} />
             </div>
           </aside>
         </main>

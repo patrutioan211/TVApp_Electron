@@ -20,25 +20,12 @@ function useShowTraffic() {
   return mins >= start && mins < end;
 }
 
-/** Canteen menu shown only 10:30–10:45 and 11:30–11:45 (15 min each). */
-function isInCanteenWindow(date) {
-  const mins = date.getHours() * 60 + date.getMinutes();
-  return (mins >= 10 * 60 + 30 && mins < 10 * 60 + 45) || (mins >= 11 * 60 + 30 && mins < 11 * 60 + 45);
-}
-
-const CANTEEN_SLOTS = [
+const CANTEEN_SLOTS_DEFAULT = [
   { time: '10:30', duration: '15 min' },
   { time: '11:30', duration: '15 min' }
 ];
 
-const CANTEEN_MENU_TODAY = {
-  soup: 'Ciorbă rădăuțeană',
-  main: 'Pui la cuptor cu orez',
-  salad: 'Salată verde',
-  dessert: 'Compot de prune'
-};
-
-const RESTAURANT_OF_DAY_EXAMPLE = {
+const RESTAURANT_DEFAULT = {
   name: 'La Turn',
   tagline: 'Restaurant & Terrace — recomandat de echipa'
 };
@@ -51,7 +38,11 @@ const STATUS_STYLES = {
   unknown: 'bg-gray-100 text-gray-600 border-gray-200'
 };
 
-function TrafficView() {
+function TrafficView({ trafficFallback }) {
+  const fallbackRoutes = trafficFallback?.destinations && Array.isArray(trafficFallback.destinations)
+    ? trafficFallback.destinations
+    : TRAFFIC_DESTINATIONS_MOCK;
+  const fallbackOrigin = trafficFallback?.origin || TRAFFIC_ORIGIN;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,10 +52,10 @@ function TrafficView() {
       try {
         const result = window.api?.getTrafficData
           ? await window.api.getTrafficData()
-          : { origin: TRAFFIC_ORIGIN, routes: TRAFFIC_DESTINATIONS_MOCK };
+          : { origin: fallbackOrigin, routes: fallbackRoutes };
         if (!cancelled) setData(result);
       } catch (e) {
-        if (!cancelled) setData({ origin: TRAFFIC_ORIGIN, routes: TRAFFIC_DESTINATIONS_MOCK });
+        if (!cancelled) setData({ origin: fallbackOrigin, routes: fallbackRoutes });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -84,8 +75,8 @@ function TrafficView() {
       </div>
     );
   }
-  const routes = data?.routes ?? TRAFFIC_DESTINATIONS_MOCK;
-  const origin = data?.origin ?? TRAFFIC_ORIGIN;
+  const routes = data?.routes ?? fallbackRoutes;
+  const origin = data?.origin ?? fallbackOrigin;
   const isLive = data?.isLive ?? false;
 
   return (
@@ -116,15 +107,16 @@ function TrafficView() {
   );
 }
 
-function CanteenRestaurantBlock() {
+function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: trafficFromWorkspace }) {
   const showTraffic = useShowTraffic();
-  const now = new Date();
-  const inCanteenWindow = isInCanteenWindow(now);
-  const showRestaurantOfDay = now.getHours() * 60 + now.getMinutes() >= 10 * 60 + 30;
-
   if (showTraffic) {
-    return <TrafficView />;
+    return <TrafficView trafficFallback={trafficFromWorkspace} />;
   }
+  const slots = (canteenFromWorkspace?.slots && Array.isArray(canteenFromWorkspace.slots)) ? canteenFromWorkspace.slots : CANTEEN_SLOTS_DEFAULT;
+  const restaurant = canteenFromWorkspace?.restaurant && typeof canteenFromWorkspace.restaurant === 'object' ? canteenFromWorkspace.restaurant : RESTAURANT_DEFAULT;
+  const tagline = restaurant.tagline || restaurant.info_restaurant || '';
+  const now = new Date();
+  const showRestaurantOfDay = now.getHours() * 60 + now.getMinutes() >= 10 * 60 + 30;
 
   return (
     <div className="w-full flex flex-col gap-3">
@@ -132,28 +124,20 @@ function CanteenRestaurantBlock() {
         Canteen & Restaurant of the Day
       </span>
       <div className="p-2 rounded-lg bg-gray-50 border border-gray-100">
-        <p className="text-xs font-semibold text-gray-700 mb-1">Canteen menu</p>
-        <p className="text-[0.65rem] text-gray-500 mb-1.5">
-          {CANTEEN_SLOTS.map((s) => `${s.time} (${s.duration})`).join(' · ')}
+        <p className="text-xs font-semibold text-gray-700 mb-1">Canteen</p>
+        <p className="text-[0.65rem] text-gray-500">
+          {slots.map((s) => `${s.time} (${s.duration || '15 min'})`).join(' · ')}
         </p>
-        {inCanteenWindow && (
-          <ul className="text-xs text-gray-700 space-y-0.5">
-            <li>Soup: {CANTEEN_MENU_TODAY.soup}</li>
-            <li>Main: {CANTEEN_MENU_TODAY.main}</li>
-            <li>Salad: {CANTEEN_MENU_TODAY.salad}</li>
-            <li>Dessert: {CANTEEN_MENU_TODAY.dessert}</li>
-          </ul>
-        )}
       </div>
-      <div className="p-2 rounded-lg bg-amber-50 border border-amber-100">
+      <div className="p-3 rounded-lg bg-amber-50 border border-amber-100 flex flex-col gap-1.5">
         <p className="text-xs font-semibold text-gray-800">Restaurant of the Day</p>
         {showRestaurantOfDay ? (
           <>
-            <p className="text-xs text-amber-800 font-medium mt-0.5">{RESTAURANT_OF_DAY_EXAMPLE.name}</p>
-            <p className="text-[0.65rem] text-gray-600 mt-0.5">{RESTAURANT_OF_DAY_EXAMPLE.tagline}</p>
+            <p className="text-sm text-amber-800 font-medium leading-tight">{restaurant.name}</p>
+            <p className="text-[0.65rem] text-gray-600 leading-snug">{tagline}</p>
           </>
         ) : (
-          <p className="text-xs text-gray-600 mt-0.5">De la ora 10:30 →</p>
+          <p className="text-xs text-gray-600">De la ora 10:30 →</p>
         )}
       </div>
     </div>

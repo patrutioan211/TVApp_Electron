@@ -14,8 +14,15 @@ function SlidePlayer({ slides }) {
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef(null);
 
-  const currentSlide = slides[currentIndex];
-  const displayType = currentSlide ? getSlideDisplay(currentSlide).type : null;
+  const currentSlide = slides && slides[currentIndex];
+  const displayType = currentSlide ? (() => {
+    try {
+      return getSlideDisplay(currentSlide).type;
+    } catch (e) {
+      console.error('[SlidePlayer] getSlideDisplay error:', e);
+      return 'image';
+    }
+  })() : null;
   const isVideoExternal = displayType === 'youtube' || displayType === 'vimeo';
   const isDocImages =
     ['pptx', 'word', 'excel'].includes(displayType) ||

@@ -5,8 +5,7 @@ const INTERVAL_PROJECT_MS = 2 * 60 * 1000;  // 2 min
 const INTERVAL_ROOMS_MS = 1 * 60 * 1000;    // 1 min
 const INTERVAL_STOCK_MS = 2 * 60 * 1000;    // 2 min
 
-// Field 1 – Uptime services (5 total, 3 per view). statusUrl for validation later.
-const UPTIME_SERVICES = [
+const UPTIME_SERVICES_DEFAULT = [
   { id: 'github', name: 'GitHub', up: true, statusUrl: '' },
   { id: 'jira', name: 'Jira', up: true, statusUrl: '' },
   { id: 'slack', name: 'Slack', up: true, statusUrl: '' },
@@ -14,21 +13,17 @@ const UPTIME_SERVICES = [
   { id: 'monitor', name: 'Monitor', up: false, statusUrl: '' }
 ];
 
-// Field 1 – Projects in work. status: 'normal' | 'task_force' | 'maintenance'
-const PROJECTS_IN_WORK = [
+const PROJECTS_IN_WORK_DEFAULT = [
   { name: 'Alpha', start: '2025-01-15', end: '2025-06-30', progress: 45, status: 'normal' },
   { name: 'Beta', start: '2025-02-01', end: '2025-08-15', progress: 28, status: 'task_force' },
   { name: 'Gamma', start: '2024-11-01', end: '2025-02-28', progress: 100, status: 'maintenance' },
   { name: 'Delta', start: '2025-03-01', end: '2025-09-30', progress: 12, status: 'normal' }
 ];
 
-// Field 2 – Meeting rooms with today's availability (example slots)
-const MEETING_ROOMS = [
-  { name: 'Room A', slots: ['08:00–09:00', '09:30–10:30', '11:00–12:00', '13:00–14:00', '14:30–15:30', '16:00–17:00', '17:30–18:00'] },
-  { name: 'Room B', slots: ['08:30–10:00', '10:30–12:00', '13:30–14:30', '15:00–16:00', '16:30–17:30'] },
-  { name: 'Room C', slots: ['09:00–10:00', '10:30–11:30', '12:00–13:00', '14:00–15:00', '15:30–16:30', '17:00–18:00'] },
-  { name: 'Room D', slots: ['08:00–09:30', '10:00–11:00', '11:30–12:30', '14:00–15:00', '15:30–17:00'] },
-  { name: 'Room E', slots: ['09:00–10:30', '11:00–12:00', '12:30–13:30', '14:00–15:00', '15:30–16:30', '17:00–18:00'] }
+const MEETING_ROOMS_DEFAULT = [
+  { name: 'Room A', slots: ['08:00–09:00', '09:30–10:30', '11:00–12:00'] },
+  { name: 'Room B', slots: ['08:30–10:00', '10:30–12:00'] },
+  { name: 'Room C', slots: ['09:00–10:00', '10:30–11:30', '12:00–13:00'] }
 ];
 
 // Field 2 – Stock: last 4 months, price in EUR, trend
@@ -82,20 +77,31 @@ function useCarousel(getPageCounts, getIntervalMs) {
 
   useEffect(() => {
     const id = setInterval(() => {
-      const now = Date.now();
-      const { categoryIndex: cat, itemIndex: item } = ref.current;
-      const intervalMs = getIntervalRef.current(cat);
-      if (now - lastTickRef.current >= intervalMs) {
-        lastTickRef.current = now;
-        setLastTick(now);
-        const pageCounts = getPagesRef.current();
-        const pages = pageCounts[cat] ?? 0;
-        if (pages > 0 && item + 1 < pages) {
-          setItemIndex(item + 1);
-        } else {
-          setCategoryIndex((c) => (c + 1) % pageCounts.length);
-          setItemIndex(0);
+      try {
+        const now = Date.now();
+        const { categoryIndex: cat, itemIndex: item } = ref.current;
+        const safeCat = Number.isFinite(cat) ? cat : 0;
+        const intervalMs = getIntervalRef.current(safeCat);
+        if (!Number.isFinite(intervalMs) || intervalMs <= 0) return;
+        if (now - lastTickRef.current >= intervalMs) {
+          lastTickRef.current = now;
+          setLastTick(now);
+          const pageCounts = getPagesRef.current();
+          const arr = Array.isArray(pageCounts) ? pageCounts : [1];
+          const len = Math.max(1, arr.length);
+          const pages = Number.isFinite(arr[safeCat]) ? arr[safeCat] : 0;
+          if (pages > 0 && item + 1 < pages) {
+            setItemIndex(item + 1);
+          } else {
+            setCategoryIndex((c) => {
+              const next = (Number.isFinite(c) ? c : 0) + 1;
+              return next % len;
+            });
+            setItemIndex(0);
+          }
         }
+      } catch (err) {
+        console.error('[StatusDashboard] useCarousel tick error:', err);
       }
     }, 1000);
     return () => clearInterval(id);
@@ -115,11 +121,16 @@ function useCountdown(lastTick, intervalMs) {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
-  const remaining = Math.max(0, Math.ceil((lastTick + intervalMs - now) / 1000));
-  return remaining;
+  const safeInterval = Number.isFinite(intervalMs) && intervalMs > 0 ? intervalMs : 60000;
+  const remaining = Math.max(0, Math.ceil((lastTick + safeInterval - now) / 1000));
+  return Number.isFinite(remaining) ? remaining : 0;
 }
 
-export default function StatusDashboard() {
+export default function StatusDashboard({ sections = {} }) {
+  const UPTIME_SERVICES = (sections.uptime_services?.services && Array.isArray(sections.uptime_services.services)) ? sections.uptime_services.services : UPTIME_SERVICES_DEFAULT;
+  const PROJECTS_IN_WORK = (sections.projects_info?.projects && Array.isArray(sections.projects_info.projects)) ? sections.projects_info.projects : PROJECTS_IN_WORK_DEFAULT;
+  const MEETING_ROOMS = (sections.meeting_rooms?.rooms && Array.isArray(sections.meeting_rooms.rooms)) ? sections.meeting_rooms.rooms : MEETING_ROOMS_DEFAULT;
+
   const field1Categories = ['uptime', 'projects'];
   const field2Categories = ['rooms', 'stock'];
 
@@ -137,8 +148,10 @@ export default function StatusDashboard() {
   const countdown1 = useCountdown(lastTick1, interval1Ms);
   const countdown2 = useCountdown(lastTick2, interval2Ms);
 
-  const field1Label = field1Categories[cat1] === 'uptime' ? 'Uptime services' : 'Project in work';
-  const field2Label = field2Categories[cat2] === 'rooms' ? 'Meeting rooms' : 'Aumovio - Share Price';
+  const safeCat1 = Number.isFinite(cat1) ? Math.max(0, Math.min(cat1, 1)) : 0;
+  const safeCat2 = Number.isFinite(cat2) ? Math.max(0, Math.min(cat2, 1)) : 0;
+  const field1Label = field1Categories[safeCat1] === 'uptime' ? 'Uptime services' : 'Project in work';
+  const field2Label = field2Categories[safeCat2] === 'rooms' ? 'Meeting rooms' : 'Aumovio - Share Price';
 
   return (
     <div className="grid grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] gap-3 w-full h-full flex-1 min-h-0">
@@ -148,7 +161,7 @@ export default function StatusDashboard() {
           <span className="text-xs uppercase tracking-[0.2em] text-gray-500">{field1Label}</span>
           <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown1}s</span>
         </div>
-        {field1Categories[cat1] === 'uptime' && (
+        {field1Categories[safeCat1] === 'uptime' && (
           <div className="flex flex-wrap gap-4 items-center justify-start flex-1">
             {UPTIME_SERVICES.slice(item1 * 3, item1 * 3 + 3).map((s) => (
               <div key={s.id} className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-gray-50 border border-gray-100">
@@ -159,28 +172,44 @@ export default function StatusDashboard() {
             ))}
           </div>
         )}
-        {field1Categories[cat1] === 'projects' && (() => {
+        {field1Categories[safeCat1] === 'projects' && (() => {
           const p = PROJECTS_IN_WORK[item1];
           if (!p) return null;
+          const startMs = p.start ? new Date(p.start).getTime() : 0;
+          const endMs = p.end ? new Date(p.end).getTime() : 0;
+          const now = Date.now();
+          const computedProgress = (startMs && endMs && endMs > startMs)
+            ? Math.min(100, Math.max(0, Math.round(((now - startMs) / (endMs - startMs)) * 100)))
+            : (p.progress ?? 0);
+          const progress = typeof p.progress === 'number' ? p.progress : computedProgress;
+          const displayStatus = progress >= 100 ? 'maintenance' : (p.status || 'normal');
           const statusStyles = {
             normal: 'bg-emerald-100 text-emerald-800 border-emerald-200',
             task_force: 'bg-red-100/80 text-red-800 border-red-200',
-            maintenance: 'bg-amber-100 text-amber-800 border-amber-200'
+            maintenance: 'bg-amber-100 text-amber-800 border-amber-200',
+            change_request: 'bg-amber-100 text-amber-800 border-amber-200'
           };
           const statusLabels = {
             normal: 'Normal work',
             task_force: 'Task Force',
-            maintenance: 'Maintenance/Change Request'
+            maintenance: 'Maintenance/Change Request',
+            change_request: 'Maintenance/Change Request'
           };
           const statusDot = {
             normal: 'bg-emerald-500',
             task_force: 'bg-red-500',
-            maintenance: 'bg-amber-500'
+            maintenance: 'bg-amber-500',
+            change_request: 'bg-amber-500'
           };
+          const iconSrc = p.icon ? (p.icon.startsWith('http') || p.icon.startsWith('workspace://') ? p.icon : 'workspace://./' + p.icon.replace(/^\.\/+/, '')) : null;
           return (
             <div className="pt-2 flex gap-3 flex-1 min-w-0">
-              <div className="shrink-0 text-gray-400">
-                <CarIcon />
+              <div className="shrink-0 text-gray-400 w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 overflow-hidden">
+                {iconSrc ? (
+                  <img src={iconSrc} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <CarIcon className="w-6 h-6" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-900 truncate">{p.name}</p>
@@ -191,15 +220,15 @@ export default function StatusDashboard() {
                   <div className="flex-1 h-2 rounded-full bg-gray-200 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-accent"
-                      style={{ width: `${Math.min(100, p.progress)}%` }}
+                      style={{ width: `${Math.min(100, progress)}%` }}
                     />
                   </div>
-                  <span className="text-xs font-medium text-gray-700 tabular-nums">{p.progress}%</span>
+                  <span className="text-xs font-medium text-gray-700 tabular-nums">{progress}%</span>
                 </div>
                 <div className="mt-1.5">
-                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[0.65rem] font-medium ${statusStyles[p.status]}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${statusDot[p.status]}`} />
-                    {statusLabels[p.status]}
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[0.65rem] font-medium ${statusStyles[displayStatus] || statusStyles.normal}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${statusDot[displayStatus] || statusDot.normal}`} />
+                    {statusLabels[displayStatus] || statusLabels.normal}
                   </span>
                 </div>
               </div>
@@ -212,17 +241,17 @@ export default function StatusDashboard() {
       <div className="rounded-2xl bg-surface border border-gray-200 shadow-sm px-4 py-2 flex flex-col min-h-[5.5rem]">
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs uppercase tracking-[0.2em] text-gray-500">{field2Label}</span>
-          {field2Categories[cat2] === 'rooms' && (
+          {field2Categories[safeCat2] === 'rooms' && (
             <span className="inline-flex items-center gap-1.5">
               <span className="text-[0.7rem] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">Live</span>
               <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown2}s</span>
             </span>
           )}
-          {field2Categories[cat2] === 'stock' && (
+          {field2Categories[safeCat2] === 'stock' && (
             <span className="text-[0.6rem] text-gray-400 tabular-nums">{countdown2}s</span>
           )}
         </div>
-        {field2Categories[cat2] === 'rooms' && (() => {
+        {field2Categories[safeCat2] === 'rooms' && (() => {
           const room = MEETING_ROOMS[item2];
           if (!room) return null;
           return (
@@ -230,7 +259,7 @@ export default function StatusDashboard() {
               <p className="text-sm font-semibold text-gray-900">{room.name}</p>
               <p className="text-[0.65rem] text-gray-500 mt-0.5 mb-1">Availability today</p>
               <div className="flex flex-wrap gap-1.5 h-14 overflow-hidden content-start">
-                {room.slots.map((slot) => (
+                {(room.slots || []).map((slot) => (
                   <span key={slot} className="inline-flex px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
                     {slot}
                   </span>
@@ -239,7 +268,7 @@ export default function StatusDashboard() {
             </div>
           );
         })()}
-        {field2Categories[cat2] === 'stock' && (() => {
+        {field2Categories[safeCat2] === 'stock' && (() => {
           const values = STOCK_HISTORY.map((d) => d.value);
           const min = Math.min(...values);
           const max = Math.max(...values);

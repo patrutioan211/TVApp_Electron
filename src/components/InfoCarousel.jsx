@@ -20,7 +20,7 @@ const BIRTHDAY_MESSAGES = [
   'Happy birthday from the whole team!'
 ];
 
-const WORK_ANNIVERSARY_MESSAGES = [
+const WORK_ANNIVERSARY_MESSAGES_DEFAULT = [
   'Thank you for your dedication. Here\'s to many more years!',
   'We appreciate everything you do. Congratulations!',
   'Proud to have you on the team. Well done!',
@@ -116,7 +116,66 @@ function AvatarPlaceholder({ name, className = 'w-12 h-12' }) {
   );
 }
 
-function InfoCarousel() {
+function parseBirthday(str) {
+  if (!str || typeof str !== 'string') return null;
+  const parts = str.slice(0, 10).split('-');
+  if (parts.length >= 2) return { month: parseInt(parts[1], 10), day: parseInt(parts[2] || '1', 10) };
+  return null;
+}
+function parseWorkStart(str) {
+  if (!str || typeof str !== 'string') return null;
+  const d = new Date(str.slice(0, 10));
+  if (isNaN(d.getTime())) return null;
+  return { joinMonth: d.getMonth() + 1, joinYear: d.getFullYear() };
+}
+function formatEventWhen(dateStr, timeStr) {
+  if (!dateStr) return timeStr || '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return timeStr || '';
+  const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+  const day = d.getDate();
+  if (timeStr) return `${mon} ${day}, ${timeStr}`;
+  return `${mon} ${day}`;
+}
+
+function InfoCarousel({ sections = {} }) {
+  const ann = sections.anniversary || {};
+  const people = Array.isArray(ann.people) ? ann.people : [];
+  const employeeOfMonthNames = Array.isArray(ann.employeeOfMonth) ? ann.employeeOfMonth.filter(Boolean) : [];
+  const jobOpenings = Array.isArray(ann.jobOpenings) ? ann.jobOpenings : [];
+  const events = Array.isArray(ann.events) ? ann.events : [];
+
+  const newColleaguesFromWorkspace = people.filter((p) => p.newColleague && (p.name || '').trim()).map((p) => ({ name: p.name.trim(), role: 'New colleague', funFact: '' }));
+  const birthdaysFromWorkspace = people
+    .filter((p) => (p.name || '').trim() && p.birthday)
+    .map((p) => {
+      const b = parseBirthday(p.birthday);
+      return b ? { name: p.name.trim(), month: b.month, day: b.day } : null;
+    })
+    .filter(Boolean);
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const currentYear = now.getFullYear();
+  const workAnniversariesFromWorkspace = people
+    .filter((p) => (p.name || '').trim() && p.workStartDate)
+    .map((p) => {
+      const w = parseWorkStart(p.workStartDate);
+      return w ? { name: p.name.trim(), joinMonth: w.joinMonth, joinYear: w.joinYear } : null;
+    })
+    .filter(Boolean)
+    .filter((p) => p.joinMonth === currentMonth)
+    .map((p) => ({ ...p, years: currentYear - p.joinYear }));
+  const upcomingBirthdaysFromWorkspace = birthdaysFromWorkspace.filter((b) => isBirthdayInNextDays(now, b.month, b.day));
+  const employeesOfMonthFromWorkspace = employeeOfMonthNames.map((name) => ({ name, job: '' }));
+  const eventsFromWorkspace = events.filter((e) => (e.name || '').trim()).map((e) => ({ name: e.name.trim(), when: formatEventWhen(e.date, e.time) }));
+
+  const NEW_COLLEAGUES_USE = newColleaguesFromWorkspace;
+  const upcomingBirthdays = upcomingBirthdaysFromWorkspace;
+  const upcomingWorkAnniversaries = workAnniversariesFromWorkspace;
+  const EMPLOYEES_OF_MONTH_USE = employeesOfMonthFromWorkspace;
+  const JOB_OPENINGS_USE = jobOpenings.length > 0 ? jobOpenings : JOB_OPENINGS;
+  const EVENTS_USE = eventsFromWorkspace.length > 0 ? eventsFromWorkspace : EVENTS;
+
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [itemIndex, setItemIndex] = useState(0);
   const [cooldownStart, setCooldownStart] = useState(() => Date.now());
@@ -141,20 +200,13 @@ function InfoCarousel() {
       setElapsed(e);
       if (e >= COOLDOWN_MS) {
         const { categoryIndex: cat, itemIndex: item } = stateRef.current;
-        const nowDate = new Date();
-        const upcomingB = getBirthdayExamples(nowDate).filter((b) => isBirthdayInNextDays(nowDate, b.month, b.day));
-        const currentMonth = nowDate.getMonth() + 1;
-        const currentYear = nowDate.getFullYear();
-        const upcomingW = getWorkAnniversaryExamples(nowDate)
-          .filter((p) => p.joinMonth === currentMonth)
-          .map((p) => ({ ...p, years: currentYear - p.joinYear }));
         const pageCounts = [
-          Math.ceil(NEW_COLLEAGUES.length / 2),
-          upcomingB.length === 0 ? 0 : Math.ceil(upcomingB.length / 2),
-          upcomingW.length === 0 ? 0 : Math.ceil(upcomingW.length / 2),
-          Math.ceil(EMPLOYEES_OF_MONTH.length / 2),
-          Math.ceil(JOB_OPENINGS.length / 2),
-          Math.ceil(EVENTS.length / 2)
+          Math.ceil(NEW_COLLEAGUES_USE.length / 2),
+          upcomingBirthdays.length === 0 ? 0 : Math.ceil(upcomingBirthdays.length / 2),
+          upcomingWorkAnniversaries.length === 0 ? 0 : Math.ceil(upcomingWorkAnniversaries.length / 2),
+          Math.ceil(EMPLOYEES_OF_MONTH_USE.length / 2),
+          Math.ceil(JOB_OPENINGS_USE.length / 2),
+          Math.ceil(EVENTS_USE.length / 2)
         ];
         const pages = pageCounts[cat] || 0;
         if (pages > 0 && item + 1 < pages) {
@@ -171,15 +223,6 @@ function InfoCarousel() {
   }, [cooldownStart]);
 
   const cooldownPercent = Math.max(0, Math.min(100, 100 - (elapsed / COOLDOWN_MS) * 100));
-  const now = new Date();
-  const allBirthdays = getBirthdayExamples(now);
-  const upcomingBirthdays = allBirthdays.filter((b) => isBirthdayInNextDays(now, b.month, b.day));
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const allWorkAnniversaries = getWorkAnniversaryExamples(now);
-  const upcomingWorkAnniversaries = allWorkAnniversaries
-    .filter((p) => p.joinMonth === currentMonth)
-    .map((p) => ({ ...p, years: currentYear - p.joinYear }));
   const categoryLabel = {
     new_colleagues: 'New colleagues',
     birthdays: 'Birthdays',
@@ -192,9 +235,12 @@ function InfoCarousel() {
   const renderContent = () => {
     switch (categories[categoryIndex]) {
       case 'new_colleagues': {
+        if (NEW_COLLEAGUES_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No new colleagues.</p>;
         const take = 2;
-        const start = (itemIndex * take) % NEW_COLLEAGUES.length;
-        const items = [NEW_COLLEAGUES[start % NEW_COLLEAGUES.length], NEW_COLLEAGUES[(start + 1) % NEW_COLLEAGUES.length]];
+        const start = (itemIndex * take) % Math.max(1, NEW_COLLEAGUES_USE.length);
+        const items = NEW_COLLEAGUES_USE.length >= 2
+          ? [NEW_COLLEAGUES_USE[start % NEW_COLLEAGUES_USE.length], NEW_COLLEAGUES_USE[(start + 1) % NEW_COLLEAGUES_USE.length]]
+          : [NEW_COLLEAGUES_USE[0]];
         return (
           <div className="space-y-3">
             {items.map((p) => (
@@ -202,8 +248,6 @@ function InfoCarousel() {
                 <AvatarPlaceholder name={p.name} />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{p.name}</p>
-                  <p className="text-xs text-gray-600">{p.role}</p>
-                  <p className="text-xs text-gray-500 italic mt-0.5">{p.funFact}</p>
                   <p className="text-xs text-accent font-medium mt-1">Good luck!</p>
                 </div>
               </div>
@@ -253,8 +297,8 @@ function InfoCarousel() {
         return (
           <div className="space-y-3">
             {items.map((person, i) => {
-              const msgIdx = (categoryIndex + itemIndex + start + i) % WORK_ANNIVERSARY_MESSAGES.length;
-              const msg = WORK_ANNIVERSARY_MESSAGES[msgIdx];
+              const msgIdx = (categoryIndex + itemIndex + start + i) % WORK_ANNIVERSARY_MESSAGES_DEFAULT.length;
+              const msg = WORK_ANNIVERSARY_MESSAGES_DEFAULT[msgIdx];
               return (
                 <div key={person.name} className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 border border-gray-100">
                   <AvatarPlaceholder name={person.name} />
@@ -270,8 +314,9 @@ function InfoCarousel() {
         );
       }
       case 'employee_of_month': {
-        const start = (itemIndex * 2) % EMPLOYEES_OF_MONTH.length;
-        const items = [EMPLOYEES_OF_MONTH[start], EMPLOYEES_OF_MONTH[(start + 1) % EMPLOYEES_OF_MONTH.length]];
+        if (EMPLOYEES_OF_MONTH_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No employee of the month selected.</p>;
+        const start = (itemIndex * 2) % EMPLOYEES_OF_MONTH_USE.length;
+        const items = [EMPLOYEES_OF_MONTH_USE[start], EMPLOYEES_OF_MONTH_USE[(start + 1) % EMPLOYEES_OF_MONTH_USE.length]];
         return (
           <div className="space-y-3">
             {items.map((person, i) => {
@@ -282,7 +327,6 @@ function InfoCarousel() {
                   <AvatarPlaceholder name={person.name} className="w-12 h-12" />
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">{person.name}</p>
-                    <p className="text-xs text-gray-600">{person.job}</p>
                     <p className="text-xs text-amber-800 mt-1">{msg}</p>
                   </div>
                 </div>
@@ -292,12 +336,13 @@ function InfoCarousel() {
         );
       }
       case 'job_openings': {
-        const start = (itemIndex * 2) % JOB_OPENINGS.length;
-        const items = [JOB_OPENINGS[start], JOB_OPENINGS[(start + 1) % JOB_OPENINGS.length]];
+        if (JOB_OPENINGS_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No job openings.</p>;
+        const start = (itemIndex * 2) % JOB_OPENINGS_USE.length;
+        const items = [JOB_OPENINGS_USE[start], JOB_OPENINGS_USE[(start + 1) % JOB_OPENINGS_USE.length]];
         return (
           <div className="space-y-2">
             {items.map((j) => (
-              <div key={j.title} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+              <div key={(j.title || '') + (j.team || '')} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-sm font-semibold text-gray-900">{j.title}</p>
                 <p className="text-xs text-gray-600">{j.team}</p>
               </div>
@@ -306,12 +351,13 @@ function InfoCarousel() {
         );
       }
       case 'events': {
-        const start = (itemIndex * 2) % EVENTS.length;
-        const items = [EVENTS[start % EVENTS.length], EVENTS[(start + 1) % EVENTS.length]];
+        if (EVENTS_USE.length === 0) return <p className="text-sm text-gray-500 py-2">No events.</p>;
+        const start = (itemIndex * 2) % EVENTS_USE.length;
+        const items = [EVENTS_USE[start % EVENTS_USE.length], EVENTS_USE[(start + 1) % EVENTS_USE.length]];
         return (
           <div className="space-y-2">
             {items.map((e) => (
-              <div key={e.name + e.when} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
+              <div key={e.name + (e.when || '')} className="p-2 rounded-lg bg-gray-50 border border-gray-100">
                 <p className="text-sm font-semibold text-gray-900">{e.name}</p>
                 <p className="text-xs text-gray-600">{e.when}</p>
               </div>

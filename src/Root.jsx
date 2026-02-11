@@ -7,12 +7,14 @@ import LoginPage from './pages/admin/LoginPage.jsx';
 import RegisterPage from './pages/admin/RegisterPage.jsx';
 import ForgotPasswordPage from './pages/admin/ForgotPasswordPage.jsx';
 import DashboardPage from './pages/admin/DashboardPage.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 export default function Root() {
   return (
-    <HashRouter>
-      <Routes>
-        <Route path="/" element={<App />} />
+    <ErrorBoundary>
+      <HashRouter>
+        <Routes>
+          <Route path="/" element={<App />} />
         <Route
           path="/admin"
           element={
@@ -30,5 +32,6 @@ export default function Root() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
+    </ErrorBoundary>
   );
 }

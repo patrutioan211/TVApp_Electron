@@ -4,6 +4,7 @@ Dashboard TV App – aplicație Python care actualizează directorul WORKSPACE
 """
 import json
 import os
+import shutil
 import subprocess
 import uuid
 from pathlib import Path
@@ -22,6 +23,20 @@ BASE_DIR = Path(__file__).resolve().parent
 WORKSPACE_DIR = Path(os.environ.get("WORKSPACE_PATH", "../WORKSPACE")).resolve()
 if not WORKSPACE_DIR.is_absolute():
     WORKSPACE_DIR = (BASE_DIR / WORKSPACE_DIR).resolve()
+
+
+# Directoare per echipă: documents, photos, videos + secțiuni de conținut (nu se șterg la Clean Workspace)
+TEAM_SECTION_DIRS = (
+    "announcements",
+    "canteen_menu",
+    "anniversary",
+    "uptime_services",
+    "info_section",
+    "projects_info",
+    "stretching",
+    "meeting_rooms",
+    "traffic",
+)
 
 
 def _team_path(name: str) -> Path:
@@ -63,6 +78,8 @@ def create_team():
             json.dumps({"slides": []}, indent=2), encoding="utf-8"
         )
         for sub in ("documents", "photos", "videos"):
+            (team_dir / sub).mkdir(exist_ok=True)
+        for sub in TEAM_SECTION_DIRS:
             (team_dir / sub).mkdir(exist_ok=True)
         return jsonify({"ok": True, "name": safe})
     except Exception as e:
@@ -106,6 +123,69 @@ def delete_team(name):
             return jsonify({"error": "not found"}), 404
         import shutil
         shutil.rmtree(team_dir)
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------- API Secțiuni echipă (announcements, canteen_menu, etc.) ----------
+@app.route("/api/teams/<name>/section/<section_id>", methods=["GET"])
+def get_team_section(name, section_id):
+    """Citește conținutul secțiunii (content.json) din WORKSPACE/<team>/<section_id>/."""
+    try:
+        team_dir = _team_path(name)
+        section_id = (section_id or "").strip().replace("..", "").replace("/", "").replace("\\", "")
+        if section_id not in TEAM_SECTION_DIRS:
+            return jsonify({"error": "invalid section"}), 400
+        content_path = team_dir / section_id / "content.json"
+        if not content_path.exists():
+            return jsonify(None)
+        data = json.loads(content_path.read_text(encoding="utf-8"))
+        return jsonify(data)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/teams/<name>/section/<section_id>", methods=["PUT"])
+def put_team_section(name, section_id):
+    """Scrie conținutul secțiunii (content.json) în WORKSPACE/<team>/<section_id>/."""
+    try:
+        team_dir = _team_path(name)
+        section_id = (section_id or "").strip().replace("..", "").replace("/", "").replace("\\", "")
+        if section_id not in TEAM_SECTION_DIRS:
+            return jsonify({"error": "invalid section"}), 400
+        section_dir = team_dir / section_id
+        section_dir.mkdir(parents=True, exist_ok=True)
+        data = request.get_json()
+        if data is None:
+            return jsonify({"error": "JSON body required"}), 400
+        content_path = section_dir / "content.json"
+        content_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        return jsonify({"ok": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/teams/section-list", methods=["GET"])
+def list_section_ids():
+    """Listează id-urile secțiunilor (pentru dashboard)."""
+    return jsonify(list(TEAM_SECTION_DIRS))
+
+
+@app.route("/api/teams/<name>/ensure-section-dirs", methods=["POST"])
+def ensure_team_section_dirs(name):
+    """Creează directoarele de secțiuni (announcements, canteen_menu, etc.) pentru echipă dacă lipsesc."""
+    try:
+        team_dir = _team_path(name)
+        team_dir.mkdir(parents=True, exist_ok=True)
+        for sub in TEAM_SECTION_DIRS:
+            (team_dir / sub).mkdir(exist_ok=True)
         return jsonify({"ok": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -294,18 +374,63 @@ def _convert_pdf_to_images(pdf_path: Path, page_numbers_1based: list, out_dir: P
 
 
 def _libreoffice_paths():
-    """Return list of possible soffice executable paths (PATH names + Windows install dirs)."""
-    candidates = ["soffice", "libreoffice"]
+    """Return list of possible soffice executable paths (PATH + env + Windows install dirs)."""
+    candidates = []
+    # Explicit path (e.g. portable install)
+    env_path = os.environ.get("LIBREOFFICE_PATH", "").strip()
+    if env_path:
+        p = Path(env_path)
+        if p.is_file():
+            candidates.append(str(p))
+        else:
+            for exe_name in ("soffice.exe", "soffice"):
+                c = p / exe_name if p.is_dir() else p
+                if c.exists():
+                    candidates.append(str(c))
+                    break
+    candidates.extend(["soffice", "libreoffice"])
     if os.name == "nt":
         for base in (
             os.environ.get("ProgramFiles", "C:\\Program Files"),
             os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"),
         ):
+            base_path = Path(base)
+            if not base_path.is_dir():
+                continue
+            # Fixed folder names
             for sub in ("LibreOffice", "LibreOffice 5", "LibreOffice 6", "LibreOffice 7", "LibreOffice 24", "LibreOffice 25"):
-                exe = Path(base) / sub / "program" / "soffice.exe"
+                exe = base_path / sub / "program" / "soffice.exe"
                 if exe.exists():
                     candidates.append(str(exe))
+            # Any "LibreOffice*" folder (e.g. LibreOffice 24.2.1)
+            try:
+                for entry in base_path.iterdir():
+                    if entry.is_dir() and entry.name.startswith("LibreOffice"):
+                        exe = entry / "program" / "soffice.exe"
+                        if exe.exists():
+                            candidates.append(str(exe))
+            except OSError:
+                pass
     return candidates
+
+
+def _dispatch_office_app(win32com_client, prog_id: str):
+    """Dispatch Office COM app; try default then 32-bit server (64-bit Python + 32-bit Office). Returns (app, None) or (None, error_str)."""
+    try:
+        app = win32com_client.Dispatch(prog_id)
+        return app, None
+    except Exception as e:
+        err = str(e).strip().lower()
+        if "com object" in err or "0x80040154" in err or "class not registered" in err:
+            try:
+                import pythoncom
+                app = win32com_client.Dispatch(
+                    prog_id, clsctx=pythoncom.CLSCTX_ACTIVATE_32_BIT_SERVER
+                )
+                return app, None
+            except Exception as e2:
+                return None, str(e2)
+        return None, str(e)
 
 
 def _convert_office_to_pdf_win32(office_path: Path, out_dir: Path) -> Tuple[Optional[Path], Optional[str]]:
@@ -317,23 +442,31 @@ def _convert_office_to_pdf_win32(office_path: Path, out_dir: Path) -> Tuple[Opti
         import win32com.client
     except ImportError:
         return None, "pywin32 not installed. Run: pip install pywin32"
-    pythoncom.CoInitialize()
+    # Office requires STA (Single-Threaded Apartment)
+    try:
+        pythoncom.CoInitializeEx(pythoncom.COINIT_APARTMENTTHREADED)
+    except Exception:
+        pythoncom.CoInitialize()
+    app = None
     try:
         suffix = office_path.suffix.lower()
         pdf_path = out_dir / (office_path.stem + ".pdf")
         in_path = os.path.abspath(office_path)
         out_pdf = os.path.abspath(pdf_path)
-        app = None
         if suffix in (".doc", ".docx"):
             wdFormatPDF = 17
-            app = win32com.client.Dispatch("Word.Application")
+            app, disp_err = _dispatch_office_app(win32com.client, "Word.Application")
+            if disp_err:
+                return None, disp_err
             app.Visible = False
             doc = app.Documents.Open(in_path)
             doc.SaveAs(out_pdf, FileFormat=wdFormatPDF)
             doc.Close(SaveChanges=False)
         elif suffix in (".xls", ".xlsx"):
             xlTypePDF = 0
-            app = win32com.client.Dispatch("Excel.Application")
+            app, disp_err = _dispatch_office_app(win32com.client, "Excel.Application")
+            if disp_err:
+                return None, disp_err
             app.Visible = False
             app.DisplayAlerts = False
             book = app.Workbooks.Open(in_path)
@@ -342,7 +475,9 @@ def _convert_office_to_pdf_win32(office_path: Path, out_dir: Path) -> Tuple[Opti
         elif suffix in (".ppt", ".pptx"):
             ppFixedFormatTypePDF = 2
             out_dir.mkdir(parents=True, exist_ok=True)
-            app = win32com.client.Dispatch("PowerPoint.Application")
+            app, disp_err = _dispatch_office_app(win32com.client, "PowerPoint.Application")
+            if disp_err:
+                return None, disp_err
             app.Visible = True
             pres = app.Presentations.Open(in_path, WithWindow=False)
             pres.ExportAsFixedFormat(out_pdf, ppFixedFormatTypePDF)
@@ -359,9 +494,14 @@ def _convert_office_to_pdf_win32(office_path: Path, out_dir: Path) -> Tuple[Opti
             except Exception:
                 pass
         err = str(e).strip() or type(e).__name__
+        if "com object" in err.lower() or "0x80040154" in err:
+            err += " (Python și Office trebuie să fie ambele 32-bit sau ambele 64-bit; sau instalează LibreOffice)"
         return None, err
     finally:
-        pythoncom.CoUninitialize()
+        try:
+            pythoncom.CoUninitialize()
+        except Exception:
+            pass
 
 
 def _convert_office_to_pdf(office_path: Path, out_dir: Path) -> Tuple[Optional[Path], Optional[str]]:
@@ -687,6 +827,79 @@ def git_pull():
         return jsonify({"ok": False, "error": "Git is not installed."})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+
+@app.route("/api/git/clean-workspace", methods=["POST"])
+def clean_workspace():
+    """
+    Clean WORKSPACE: for each team, delete files/dirs under documents/, photos/, videos/
+    that are not referenced in playlist.json. References can be files or directories;
+    if a directory is in the playlist, everything inside it is kept (skip).
+    """
+    if not WORKSPACE_DIR.exists():
+        return jsonify({"ok": True, "deleted": [], "teams": [], "message": "Workspace not found."})
+    report = {"ok": True, "teams": [], "deleted": [], "errors": []}
+    for team_dir in sorted(WORKSPACE_DIR.iterdir()):
+        if not team_dir.is_dir() or team_dir.name.startswith("."):
+            continue
+        team_name = team_dir.name
+        pl_path = team_dir / "playlist.json"
+        if not pl_path.exists():
+            report["teams"].append({"name": team_name, "deleted": [], "skipped": "no playlist.json"})
+            continue
+        try:
+            data = json.loads(pl_path.read_text(encoding="utf-8"))
+            slides = data.get("slides") if isinstance(data.get("slides"), list) else []
+        except Exception as e:
+            report["errors"].append(f"{team_name}: {e}")
+            continue
+        protected_srcs = set()
+        for s in slides:
+            src = (s.get("src") or "").strip().replace("\\", "/").strip("/")
+            if not src or ".." in src:
+                continue
+            if src.startswith("documents/") or src.startswith("photos/") or src.startswith("videos/"):
+                protected_srcs.add(src)
+
+        def is_protected(rel_path: str) -> bool:
+            for s in protected_srcs:
+                if s == rel_path or rel_path.startswith(s + "/") or s.startswith(rel_path + "/"):
+                    return True
+            return False
+
+        to_delete = []
+        for sub in ("documents", "photos", "videos"):
+            sub_dir = team_dir / sub
+            if not sub_dir.is_dir():
+                continue
+            for root, dirs, files in os.walk(sub_dir, topdown=False):
+                root_path = Path(root)
+                rel_root = root_path.relative_to(team_dir).as_posix()
+                for f in files:
+                    rel = (root_path / f).relative_to(team_dir).as_posix()
+                    if not is_protected(rel):
+                        to_delete.append(rel)
+                for d in dirs:
+                    rel = (root_path / d).relative_to(team_dir).as_posix()
+                    if not is_protected(rel):
+                        to_delete.append(rel)
+        to_delete.sort(key=lambda p: -p.count("/"))
+        team_deleted = []
+        for rel in to_delete:
+            target = (team_dir / rel).resolve()
+            if not str(target).startswith(str(team_dir)) or not target.exists():
+                continue
+            try:
+                if target.is_dir():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
+                team_deleted.append(rel)
+                report["deleted"].append(f"{team_name}/{rel}")
+            except Exception as e:
+                report["errors"].append(f"{team_name}/{rel}: {e}")
+        report["teams"].append({"name": team_name, "deleted": team_deleted})
+    return jsonify(report)
 
 
 if __name__ == "__main__":

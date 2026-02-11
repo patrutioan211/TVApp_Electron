@@ -150,10 +150,11 @@ app.whenReady().then(() => {
 
   createWindow(getBaseUrl());
 
-  // Git sync (5 min) + actualizare playlist o dată pe oră
+  // Git pull la 30 min → trimite 'playlist-updated' → view reîncarcă playlist + toate secțiunile
   initGitSync(() => {
     if (mainWindow) mainWindow.webContents.send('playlist-updated');
   });
+  // Fallback: refresh conținut din disk la 1h chiar dacă git pull lipsește sau eșuează
   setInterval(() => {
     if (mainWindow) mainWindow.webContents.send('playlist-updated');
   }, 60 * 60 * 1000);
@@ -168,6 +169,8 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('get-playlist-for-team', (_, team) => workspaceService.getPlaylistForTeam(team));
   ipcMain.handle('get-traffic-data', () => trafficService.getTrafficData());
+  ipcMain.handle('get-section-content', (_, team, sectionId) => workspaceService.getSectionContent(team, sectionId));
+  ipcMain.handle('get-all-sections-content', (_, team) => workspaceService.getAllSectionsContent(team));
   ipcMain.handle('get-workspace-folder-images', (_, relativePath) =>
     workspaceService.getWorkspaceFolderImages(relativePath)
   );

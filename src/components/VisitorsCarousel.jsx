@@ -97,13 +97,23 @@ const CATEGORY_LABELS = {
   reminder_healthy: 'Reminder healthy (11:45 – 10 min stretching live)'
 };
 
-export default function VisitorsCarousel() {
+export default function VisitorsCarousel({ sections = {} }) {
+  const info = sections.info_section || {};
+  const reminderHealthyFromInfo = (info.reminderHealthy && Array.isArray(info.reminderHealthy)) ? info.reminderHealthy : [];
+  const stretchingItems = reminderHealthyFromInfo.length > 0
+    ? reminderHealthyFromInfo
+    : (sections.stretching?.items && Array.isArray(sections.stretching.items)) ? sections.stretching.items : REMINDER_HEALTHY_SECTIONS;
+  const customerFeedback = (info.customerFeedback && Array.isArray(info.customerFeedback)) ? info.customerFeedback : CUSTOMER_FEEDBACK;
+  const quotesOfDayRaw = (info.quotesOfDay && Array.isArray(info.quotesOfDay)) ? info.quotesOfDay : QUOTES_OF_DAY;
+  const didYouKnow = (info.didYouKnow && Array.isArray(info.didYouKnow)) ? info.didYouKnow : DID_YOU_KNOW;
+  const wordOfDay = (info.wordOfDay && Array.isArray(info.wordOfDay)) ? info.wordOfDay : WORD_OF_DAY;
+
   const pageCounts = [
-    CUSTOMER_FEEDBACK.length,
-    1, // one quote per day
-    1, // one did you know per day
-    1, // one word per day
-    1
+    customerFeedback.length,
+    1,
+    1,
+    1,
+    Math.max(1, stretchingItems.length)
   ];
   const dayIndex = getDayIndex();
 
@@ -114,7 +124,7 @@ export default function VisitorsCarousel() {
   const renderContent = () => {
     switch (category) {
       case 'customer_feedback': {
-        const item = CUSTOMER_FEEDBACK[itemIndex];
+        const item = customerFeedback[itemIndex];
         if (!item) return null;
         return (
           <div className="space-y-1.5">
@@ -124,33 +134,39 @@ export default function VisitorsCarousel() {
         );
       }
       case 'quote_of_day': {
-        const quote = QUOTES_OF_DAY[dayIndex % QUOTES_OF_DAY.length];
+        const pool = quotesOfDayRaw.filter((q) => (typeof q === 'object' && q && q.used === true) || typeof q === 'string');
+        const list = pool.length > 0 ? pool : quotesOfDayRaw;
+        const quote = list[dayIndex % Math.max(1, list.length)];
         if (!quote) return null;
+        const text = typeof quote === 'string' ? quote : (quote.quote != null ? quote.quote : quote.text || '');
         return (
-          <p className="text-sm text-gray-700 leading-snug italic">&ldquo;{quote}&rdquo;</p>
+          <p className="text-sm text-gray-700 leading-snug italic">&ldquo;{text}&rdquo;</p>
         );
       }
       case 'did_you_know': {
-        const item = DID_YOU_KNOW[dayIndex % DID_YOU_KNOW.length];
+        const item = didYouKnow[dayIndex % Math.max(1, didYouKnow.length)];
         if (!item) return null;
+        const fact = item.fact != null ? item.fact : (typeof item === 'string' ? item : '');
         return (
-          <p className="text-sm text-gray-600 leading-snug">{item.fact}</p>
+          <p className="text-sm text-gray-600 leading-snug">{fact}</p>
         );
       }
       case 'word_of_day': {
-        const item = WORD_OF_DAY[dayIndex % WORD_OF_DAY.length];
+        const item = wordOfDay[dayIndex % Math.max(1, wordOfDay.length)];
         if (!item) return null;
+        const word = item.word != null ? item.word : '';
+        const meaning = item.meaning != null ? item.meaning : '';
         return (
           <div className="space-y-1.5">
-            <p className="text-base font-semibold text-gray-900">{item.word}</p>
-            <p className="text-sm text-gray-600 leading-snug">{item.meaning}</p>
+            <p className="text-base font-semibold text-gray-900">{word}</p>
+            <p className="text-sm text-gray-600 leading-snug">{meaning}</p>
           </div>
         );
       }
       case 'reminder_healthy': {
         return (
           <div className="space-y-2">
-            {REMINDER_HEALTHY_SECTIONS.map((s, i) => (
+            {stretchingItems.map((s, i) => (
               <div key={i} className="flex gap-2">
                 <span className="text-[0.65rem] font-semibold text-emerald-600 shrink-0">{s.title}</span>
                 <p className="text-xs text-gray-600 leading-snug">{s.text}</p>

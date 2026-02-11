@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('api', {
     return () => ipcRenderer.removeListener('playlist-updated', listener);
   },
   getTrafficData: () => ipcRenderer.invoke('get-traffic-data'),
+  getSectionContent: (team, sectionId) => ipcRenderer.invoke('get-section-content', team, sectionId),
+  getAllSectionsContent: (team) => ipcRenderer.invoke('get-all-sections-content', team),
   getWorkspaceFolderImages: (path) => ipcRenderer.invoke('get-workspace-folder-images', path),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   openAdminWindow: () => ipcRenderer.invoke('open-admin-window'),

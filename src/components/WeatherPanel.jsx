@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchWeather } from '../utils/weather.js';
 
-const ANNOUNCEMENTS = [
+const ANNOUNCEMENTS_DEFAULT = [
   'Quarterly town hall today at 16:00, Sky Auditorium – all teams invited.',
   'New security badges required from next week. Collect at reception.',
   'Building maintenance: elevators B block on Saturday 08:00–12:00.',
@@ -11,7 +11,10 @@ const ANNOUNCEMENTS = [
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 min
 
-function WeatherPanel() {
+function WeatherPanel({ announcements: announcementsFromWorkspace }) {
+  const ANNOUNCEMENTS = (announcementsFromWorkspace?.items && Array.isArray(announcementsFromWorkspace.items) && announcementsFromWorkspace.items.length > 0)
+    ? announcementsFromWorkspace.items
+    : ANNOUNCEMENTS_DEFAULT;
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -151,9 +154,11 @@ function WeatherPanel() {
         </div>
         <div className="flex flex-col gap-2 min-h-[3.5rem] mt-1">
           {visibleAnnouncements.map((a) => (
-            <p key={a.id} className="text-sm font-medium text-gray-800 leading-snug">
-              {a.text}
-            </p>
+            <div
+              key={a.id}
+              className="text-sm font-medium text-gray-800 leading-snug announcement-html"
+              dangerouslySetInnerHTML={{ __html: typeof a.text === 'string' ? a.text : (a.text || '') }}
+            />
           ))}
         </div>
       </div>

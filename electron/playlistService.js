@@ -5,8 +5,8 @@ const simpleGit = require('simple-git');
 // Git repo = rădăcina proiectului (WORKSPACE e aici)
 const CONTENT_DIR = path.join(__dirname, '..');
 
-// 5 minutes in ms
-const SYNC_INTERVAL_MS = 5 * 60 * 1000;
+// 15 min – git pull; view-ul se actualizează doar când a venit alt commit
+const SYNC_INTERVAL_MS = 15 * 60 * 1000;
 
 let git = null;
 let contentDirExists = false;
@@ -43,11 +43,13 @@ async function doGitSync() {
       return false;
     }
 
-    // Ensure repo exists and is valid
     await gitClient.fetch();
     const result = await gitClient.pull();
-    console.log('Git pull result:', result.summary);
-    return true;
+    const summary = result && result.summary;
+    console.log('Git pull result:', typeof summary === 'string' ? summary : summary);
+    // Actualizăm playlist + tot contentul doar dacă pull-ul a adus modificări (alt commit)
+    const noChanges = typeof summary === 'string' && /already up to date/i.test(summary);
+    return !noChanges;
   } catch (err) {
     console.error('Git sync error:', err.message);
     return false;
@@ -55,8 +57,8 @@ async function doGitSync() {
 }
 
 /**
- * Initializes periodic git sync (every 5 minutes).
- * Calls onUpdate() whenever a pull finishes.
+ * Git pull la 15 min. Apelează onUpdate() doar când pull-ul a adus un commit nou,
+ * astfel view-ul reîncarcă playlist + tot conținutul (secțiuni) din workspace.
  */
 function initGitSync(onUpdate) {
   // First sync on startup

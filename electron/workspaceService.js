@@ -6,6 +6,11 @@ const { app } = require('electron');
 const PROJECT_ROOT = path.join(__dirname, '..');
 const WORKSPACE_DIR = path.join(PROJECT_ROOT, 'WORKSPACE');
 
+const SECTION_IDS = [
+  'announcements', 'canteen_menu', 'anniversary', 'uptime_services',
+  'info_section', 'projects_info', 'stretching', 'meeting_rooms', 'traffic'
+];
+
 // Persistență echipă selectată (userData – nu se resetează la update)
 const TEAM_CONFIG_PATH = path.join(app.getPath('userData'), 'signage-team.json');
 
@@ -138,6 +143,9 @@ async function createTeam(teamName) {
     await fs.mkdir(path.join(teamDir, 'documents'), { recursive: true });
     await fs.mkdir(path.join(teamDir, 'photos'), { recursive: true });
     await fs.mkdir(path.join(teamDir, 'videos'), { recursive: true });
+    for (const sub of SECTION_IDS) {
+      await fs.mkdir(path.join(teamDir, sub), { recursive: true });
+    }
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message };
@@ -165,6 +173,52 @@ async function savePlaylist(teamName, playlistData) {
   }
 }
 
+/**
+ * Creează directoarele de secțiuni pentru echipă dacă lipsesc (migrare echipe vechi).
+ */
+async function ensureSectionDirs(teamName) {
+  if (!teamName) return;
+  const teamDir = path.join(WORKSPACE_DIR, teamName);
+  try {
+    await fs.mkdir(teamDir, { recursive: true });
+    for (const sub of SECTION_IDS) {
+      await fs.mkdir(path.join(teamDir, sub), { recursive: true });
+    }
+  } catch (err) {
+    console.error('ensureSectionDirs', teamName, err.message);
+  }
+}
+
+/**
+ * Citește conținutul secțiunii (content.json) pentru o echipă.
+ * Returnează obiectul JSON sau null dacă nu există.
+ */
+async function getSectionContent(teamName, sectionId) {
+  if (!teamName || !sectionId || !SECTION_IDS.includes(sectionId)) return null;
+  const contentPath = path.join(WORKSPACE_DIR, teamName, sectionId, 'content.json');
+  try {
+    const raw = await fs.readFile(contentPath, 'utf-8');
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Returnează toate secțiunile pentru echipa selectată (sau teamName).
+ * Creează directoarele de secțiuni dacă lipsesc.
+ */
+async function getAllSectionsContent(teamName) {
+  const team = teamName || await readTeamConfig();
+  if (!team) return {};
+  await ensureSectionDirs(team);
+  const out = {};
+  for (const id of SECTION_IDS) {
+    out[id] = await getSectionContent(team, id);
+  }
+  return out;
+}
+
 module.exports = {
   getWorkspaceDir,
   getTeams,
@@ -175,5 +229,7 @@ module.exports = {
   getWorkspaceFolderImages,
   createTeam,
   deleteTeam,
-  savePlaylist
+  savePlaylist,
+  getSectionContent,
+  getAllSectionsContent
 };

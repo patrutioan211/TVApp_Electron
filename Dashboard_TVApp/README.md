@@ -52,6 +52,15 @@ Deschide în browser: **http://127.0.0.1:5000**
 
 Modificările se scriu direct în directorul WORKSPACE; TV App (Electron) citește același WORKSPACE.
 
+## Conversie documente Office (Word, Excel, PowerPoint)
+
+Pentru slide-uri din `.doc`, `.docx`, `.xls`, `.xlsx`, `.ppt`, `.pptx`, Dashboard-ul convertește fișierul în PDF, apoi în imagini.
+
+- **Recomandat: LibreOffice** – instalează de la [libreoffice.org/download](https://www.libreoffice.org/download). Aplicația caută automat `soffice.exe` în Program Files și în PATH.
+- **Variabilă de mediu (instalare portable):** setează `LIBREOFFICE_PATH` în `.env` la folderul unde ai LibreOffice (sau calea completă la `soffice.exe`), ex.: `LIBREOFFICE_PATH=D:\Portable\LibreOffice\program`.
+- **Microsoft Office (Windows):** se poate folosi ca rezervă doar dacă Python și Office au aceeași arhitectură (ambele 32-bit sau ambele 64-bit). În caz contrar apare eroare COM; folosește LibreOffice.
+- **Alternativ:** încarcă direct un fișier PDF în folderul documentului.
+
 ## Construire .exe (PyInstaller)
 
 Pentru a obține un executabil Windows:
