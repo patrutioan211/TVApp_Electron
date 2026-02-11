@@ -5,5 +5,6 @@
     "Building maintenance: elevators B block on Saturday 08:00–12:00.",
     "Canteen closed Friday 14:00–16:00 for staff event.",
     "Reminder: Please update your project hours in the booking system by EOD."
-  ]
+  ],
+  "cooldownSeconds": 50
 }
