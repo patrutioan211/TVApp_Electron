@@ -124,7 +124,7 @@ function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: tr
         Canteen & Restaurant
       </span>
       <div className="p-2 rounded-md bg-gray-50 border border-gray-100 shrink-0">
-        <p className="text-sm font-semibold text-gray-900 mb-0">Canteen</p>
+        <p className="text-sm font-semibold text-gray-900 mb-0">Canteen Menu</p>
         <p className="text-[0.65rem] text-gray-500 mt-0 mb-1 leading-snug">
           {slots.map((s) => `${s.time} (${s.duration || '15 min'})`).join(' · ')}
         </p>
