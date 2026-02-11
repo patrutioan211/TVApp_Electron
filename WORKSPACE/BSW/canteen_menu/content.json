@@ -1,0 +1,16 @@
+{
+  "slots": [
+    {
+      "time": "10:30",
+      "duration": "15 min"
+    },
+    {
+      "time": "11:30",
+      "duration": "15 min"
+    }
+  ],
+  "restaurant": {
+    "name": "La Turn",
+    "tagline": "Restaurant & Terrace — recomandat de echipa"
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "projects": [
+    {
+      "name": "Alpha",
+      "start": "2025-01-15",
+      "end": "2025-06-30",
+      "status": "normal",
+      "icon": ""
+    },
+    {
+      "name": "Beta",
+      "start": "2025-02-01",
+      "end": "2025-08-15",
+      "status": "task_force",
+      "icon": ""
+    },
+    {
+      "name": "Gamma",
+      "start": "2024-11-01",
+      "end": "2025-02-28",
+      "status": "maintenance",
+      "icon": ""
+    },
+    {
+      "name": "Delta",
+      "start": "2025-03-01",
+      "end": "2025-09-30",
+      "status": "normal",
+      "icon": ""
+    }
+  ]
+}
