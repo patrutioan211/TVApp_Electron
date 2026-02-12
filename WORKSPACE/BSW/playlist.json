@@ -73,13 +73,23 @@
       "type": "word"
     },
     {
+      "duration": 60,
+      "enabled": true,
       "id": "slide-1770852391938",
+      "src": "https://www.aumovio.com",
+      "subtitle": "",
+      "title": "",
+      "type": "web_live"
+    },
+    {
+      "id": "slide-1770855916866",
       "type": "web_live",
       "duration": 60,
       "title": "",
       "subtitle": "",
       "enabled": true,
-      "src": "https://github.com/patrutioan211/TVApp_Electron"
+      "src": "https://www.aumovio.com",
+      "webLiveFit": 250
     }
   ]
 }
