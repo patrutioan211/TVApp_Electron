@@ -73,14 +73,14 @@
       "type": "word"
     },
     {
-      "id": "slide-1770855916866",
-      "type": "web_live",
       "duration": 60,
-      "title": "",
-      "subtitle": "",
       "enabled": true,
+      "id": "slide-1770855916866",
       "src": "https://www.aumovio.com",
-      "webLiveFit": 250
+      "subtitle": "",
+      "title": "",
+      "type": "web_live",
+      "webLiveFit": 150
     }
   ]
 }
