@@ -1,4 +1,14 @@
 {
+  "menuPdfItems": [
+    {
+      "url": "https://pdfobject.com/pdf/sample.pdf",
+      "range": "all"
+    },
+    {
+      "url": "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf",
+      "range": "all"
+    }
+  ],
   "menuPdfUrls": [
     "https://pdfobject.com/pdf/sample.pdf",
     "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf"
@@ -12,22 +22,12 @@
   "restaurantLocation": "Sibiu",
   "slots": [
     {
-      "time": "15:33",
-      "duration": 10
+      "time": "15:53",
+      "duration": 5
     },
     {
       "time": "11:30",
       "duration": 10
-    }
-  ],
-  "menuPdfItems": [
-    {
-      "url": "https://pdfobject.com/pdf/sample.pdf",
-      "range": "all"
-    },
-    {
-      "url": "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf",
-      "range": "all"
     }
   ]
 }
