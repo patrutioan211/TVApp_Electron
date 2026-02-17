@@ -30,6 +30,8 @@ const canteenMenuPdf = require('./canteenMenuPdfService');
 const { autoUpdater } = require('electron-updater');
 const isDev = process.env.USE_DEV_SERVER === '1';
 const UPDATE_FEED_URL = process.env.UPDATE_FEED_URL || '';
+// GitHub repo pentru update (același repo ca aplicația) – folosit când UPDATE_FEED_URL nu e setat
+const GITHUB_UPDATE_REPO = { owner: 'patrutioan211', repo: 'TVApp_Electron' };
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 
 app.setName('AumovioTVApp');
@@ -220,8 +222,13 @@ app.whenReady().then(async () => {
     console.warn('[Version] Could not read version at startup:', e.message);
   }
 
-  if (!isDev && UPDATE_FEED_URL) {
-    autoUpdater.setFeedURL({ provider: 'generic', url: UPDATE_FEED_URL.replace(/\/$/, '') });
+  const useUpdater = !isDev && (UPDATE_FEED_URL || GITHUB_UPDATE_REPO.owner);
+  if (useUpdater) {
+    if (UPDATE_FEED_URL) {
+      autoUpdater.setFeedURL({ provider: 'generic', url: UPDATE_FEED_URL.replace(/\/$/, '') });
+    } else {
+      autoUpdater.setFeedURL({ provider: 'github', ...GITHUB_UPDATE_REPO });
+    }
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('update-available', (info) => {
       console.log('[Update] Update available:', info.version);
@@ -244,7 +251,7 @@ app.whenReady().then(async () => {
       const newVersion = data && typeof data.version === 'string' ? data.version.trim() : null;
       if (!newVersion || newVersion === currentAppVersion) return;
       console.log('[Version] Detected new version', newVersion, '(current', currentAppVersion + ').');
-      if (UPDATE_FEED_URL) {
+      if (useUpdater) {
         autoUpdater.checkForUpdates().catch((e) => {
           console.warn('[Update] checkForUpdates failed:', e.message);
           app.relaunch();

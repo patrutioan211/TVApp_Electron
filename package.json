@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Digital signage app using Electron, Vite, React, Tailwind, and simple-git.",
   "keywords": ["digital-signage", "tv", "electron", "aumovio"],
+  "repository": { "type": "git", "url": "https://github.com/patrutioan211/TVApp_Electron.git" },
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
@@ -12,6 +13,7 @@
     "start": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "dist:win": "npm run build && electron-builder --win",
+    "release:github": "node scripts/release-to-github.js",
     "icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
@@ -40,6 +42,7 @@
   "build": {
     "appId": "com.aumovio.tvapp",
     "productName": "AumovioTVApp",
+    "publish": { "provider": "github", "owner": "patrutioan211", "repo": "TVApp_Electron" },
     "directories": { "output": "release" },
     "files": ["dist/**/*", "electron/**/*", "content/**/*", "WORKSPACE/**/*", "version.json", "package.json"],
     "win": {
