@@ -1,4 +1,9 @@
 {
+  "menuPdfUrls": [
+    "https://pdfobject.com/pdf/sample.pdf",
+    "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf"
+  ],
+  "only_delivery": false,
   "restaurant": {
     "name": "Restaurant Lumos - Coffee and brunch",
     "tagline": "4.6 ⭐ · €€ - expensive"
@@ -7,17 +12,12 @@
   "restaurantLocation": "Sibiu",
   "slots": [
     {
-      "time": "10:30",
-      "duration": "15 min"
+      "time": "14:45",
+      "duration": 10
     },
     {
       "time": "11:30",
-      "duration": "15 min"
+      "duration": 10
     }
-  ],
-  "menuPdfUrls": [
-    "https://pdfobject.com/pdf/sample.pdf",
-    "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf"
-  ],
-  "only_delivery": false
+  ]
 }
