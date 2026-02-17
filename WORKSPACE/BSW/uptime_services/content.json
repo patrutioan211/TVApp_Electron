@@ -1,4 +1,5 @@
 {
+  "cooldownSeconds": 120,
   "services": [
     {
       "id": "github",
@@ -24,6 +25,5 @@
       "statusUrl": "",
       "up": true
     }
-  ],
-  "cooldownSeconds": 120
+  ]
 }
