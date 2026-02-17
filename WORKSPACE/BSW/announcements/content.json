@@ -1,10 +1,30 @@
 {
   "cooldownSeconds": 54,
   "items": [
-    "Quarterly town hall today at 16:00, Sky Auditorium – all teams invited.",
-    "New security badges required from next week. Collect at reception.",
-    "Building maintenance: elevators B block on Saturday 08:00–12:00.",
-    "Canteen closed Friday 14:00–16:00 for staff event.",
-    "Reminder: Please update your project hours in the booking system by EOD."
+    {
+      "text": "<span style=\"color: rgb(255, 0, 0);\">Quarterly town</span> hall today at 16:00, Sky Auditorium – all teams invited.",
+      "color": "#000000",
+      "bold": false
+    },
+    {
+      "text": "New security badges required from next week. Collect at reception.",
+      "color": "#000000",
+      "bold": false
+    },
+    {
+      "text": "Building maintenance: elevators B block on Saturday 08:00–12:00.",
+      "color": "#000000",
+      "bold": false
+    },
+    {
+      "text": "Canteen closed Friday 14:00–16:00 for staff event.",
+      "color": "#000000",
+      "bold": false
+    },
+    {
+      "text": "Reminder: Please update your project hours in the booking system by EOD.",
+      "color": "#000000",
+      "bold": false
+    }
   ]
 }
