@@ -83,15 +83,15 @@
       "webLiveFit": 400
     },
     {
+      "id": "slide-1771349685198",
+      "type": "social_media",
       "duration": 15,
+      "title": "",
+      "subtitle": "",
       "enabled": true,
-      "id": "slide-1771349087377",
       "posts": [
         "https://www.linkedin.com/embed/feed/update/urn:li:activity:7428079286021935104"
-      ],
-      "subtitle": "",
-      "title": "",
-      "type": "social_media"
+      ]
     }
   ]
 }
