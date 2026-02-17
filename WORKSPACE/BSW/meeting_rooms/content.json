@@ -9,5 +9,6 @@
     {
       "name": "Room C"
     }
-  ]
+  ],
+  "cooldownSeconds": 10
 }
