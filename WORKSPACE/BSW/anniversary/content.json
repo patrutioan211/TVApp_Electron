@@ -1,13 +1,13 @@
 {
   "people": [],
   "employeeOfMonth": [],
-  "jobOpenings": [],
-  "events": [
+  "jobOpenings": [
     {
-      "name": "Team Building",
-      "date": "2025-04-12",
-      "time": "09:00"
-    },
+      "title": "job example",
+      "team": "- EBS"
+    }
+  ],
+  "events": [
     {
       "name": "Tech Talk: Security",
       "date": "2025-04-15",
