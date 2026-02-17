@@ -1,38 +1,7 @@
 {
-  "people": [
-    {
-      "name": "Laura Popa",
-      "birthday": "1990-02-12",
-      "newColleague": false,
-      "workStartDate": "2019-02-01"
-    },
-    {
-      "name": "George Mihai",
-      "birthday": "1988-02-13",
-      "newColleague": false,
-      "workStartDate": "2021-02-01"
-    },
-    {
-      "name": "Simona Marin",
-      "birthday": "1992-11-08",
-      "newColleague": true,
-      "workStartDate": "2025-01-15"
-    }
-  ],
-  "employeeOfMonth": [
-    "Laura Popa",
-    "George Mihai"
-  ],
-  "jobOpenings": [
-    {
-      "title": "Senior Frontend Developer",
-      "team": "Product"
-    },
-    {
-      "title": "Data Engineer",
-      "team": "Analytics"
-    }
-  ],
+  "people": [],
+  "employeeOfMonth": [],
+  "jobOpenings": [],
   "events": [
     {
       "name": "Team Building",
@@ -44,5 +13,6 @@
       "date": "2025-04-15",
       "time": "14:00"
     }
-  ]
+  ],
+  "cooldownSeconds": 20
 }
