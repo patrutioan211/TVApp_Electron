@@ -12,12 +12,22 @@
   "restaurantLocation": "Sibiu",
   "slots": [
     {
-      "time": "14:53",
+      "time": "15:29",
       "duration": 10
     },
     {
       "time": "11:30",
       "duration": 10
+    }
+  ],
+  "menuPdfItems": [
+    {
+      "url": "https://pdfobject.com/pdf/sample.pdf",
+      "range": "all"
+    },
+    {
+      "url": "https://ontheline.trincoll.edu/images/bookdown/sample-local-pdf.pdf",
+      "range": "all"
     }
   ]
 }
