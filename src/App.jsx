@@ -9,6 +9,7 @@ import VisitorsCarousel from './components/VisitorsCarousel.jsx';
 import AumovioLogo from './components/AumovioLogo.jsx';
 import TeamSelection from './components/TeamSelection.jsx';
 import StretchingPopup from './components/StretchingPopup.jsx';
+import CanteenMenuPopup from './components/CanteenMenuPopup.jsx';
 
 function App() {
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -18,10 +19,29 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
+  const [canteenMenuPopupVisible, setCanteenMenuPopupVisible] = useState(false);
+  const [canteenMenuPopupDuration, setCanteenMenuPopupDuration] = useState(15);
+  const [canteenMenuLoadFailed, setCanteenMenuLoadFailed] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!window.api?.onCanteenMenuShow || !window.api?.onCanteenMenuLoadFailed) return;
+    const unshow = window.api.onCanteenMenuShow((payload) => {
+      setCanteenMenuLoadFailed(false);
+      setCanteenMenuPopupDuration(payload?.durationMinutes ?? 15);
+      setCanteenMenuPopupVisible(true);
+    });
+    const unfail = window.api.onCanteenMenuLoadFailed(() => {
+      setCanteenMenuLoadFailed(true);
+    });
+    return () => {
+      if (typeof unshow === 'function') unshow();
+      if (typeof unfail === 'function') unfail();
+    };
   }, []);
 
   const greeting = (() => {
@@ -237,11 +257,20 @@ function App() {
             <InfoCarousel sections={sectionsContent} />
           </div>
           <div className="shrink-0 rounded-xl sm:rounded-2xl bg-surface border border-gray-200 shadow-sm px-2 py-1.5 sm:px-3 sm:py-2 w-full">
-            <CanteenRestaurantBlock canteenMenu={sectionsContent.canteen_menu} traffic={sectionsContent.traffic} />
+            <CanteenRestaurantBlock
+              canteenMenu={sectionsContent.canteen_menu}
+              traffic={sectionsContent.traffic}
+              menuLoadFailed={canteenMenuLoadFailed}
+            />
           </div>
         </aside>
       </main>
       <StretchingPopup sections={sectionsContent} now={now} />
+      <CanteenMenuPopup
+        visible={canteenMenuPopupVisible}
+        durationMinutes={canteenMenuPopupDuration}
+        onClose={() => setCanteenMenuPopupVisible(false)}
+      />
     </div>
   );
 }

@@ -205,6 +205,21 @@ async function getSectionContent(teamName, sectionId) {
 }
 
 /**
+ * Scrie conținutul secțiunii (content.json) pentru o echipă.
+ */
+async function writeSectionContent(teamName, sectionId, data) {
+  if (!teamName || !sectionId || !SECTION_IDS.includes(sectionId)) return false;
+  const contentPath = path.join(WORKSPACE_DIR, teamName, sectionId, 'content.json');
+  try {
+    await fs.mkdir(path.dirname(contentPath), { recursive: true });
+    await fs.writeFile(contentPath, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returnează toate secțiunile pentru echipa selectată (sau teamName).
  * Creează directoarele de secțiuni dacă lipsesc.
  */
@@ -231,5 +246,6 @@ module.exports = {
   deleteTeam,
   savePlaylist,
   getSectionContent,
+  writeSectionContent,
   getAllSectionsContent
 };

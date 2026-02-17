@@ -107,7 +107,17 @@ function TrafficView({ trafficFallback }) {
   );
 }
 
-function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: trafficFromWorkspace }) {
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function yesterdayStr() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: trafficFromWorkspace, menuLoadFailed }) {
   const showTraffic = useShowTraffic();
   if (showTraffic) {
     return <TrafficView trafficFallback={trafficFromWorkspace} />;
@@ -117,16 +127,33 @@ function CanteenRestaurantBlock({ canteenMenu: canteenFromWorkspace, traffic: tr
   const tagline = restaurant.tagline || restaurant.info_restaurant || '';
   const now = new Date();
   const showRestaurantOfDay = now.getHours() * 60 + now.getMinutes() >= 10 * 60 + 30;
+  const updated = (canteenFromWorkspace?.restaurantLastUpdated || '').trim();
+  const today = todayStr();
+  const yesterday = yesterdayStr();
+  const isUpdated = updated === today || updated === yesterday;
 
   return (
     <div className="w-full flex flex-col gap-1.5 min-h-0 overflow-hidden">
-      <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate shrink-0">
-        Canteen & Restaurant
-      </span>
+      <div className="flex items-start justify-between gap-2 shrink-0">
+        <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate min-w-0">
+          Canteen & Restaurant
+        </span>
+        <span
+          className={`shrink-0 w-2 h-2 rounded-full mt-0.5 ${isUpdated ? 'bg-green-600' : 'bg-red-600'}`}
+          title={isUpdated ? 'Restaurant actualizat în ultimele 24h' : 'Restaurant neactualizat în ultimele 24h'}
+        />
+      </div>
       <div className="p-2 rounded-md bg-gray-50 border border-gray-100 shrink-0">
-        <p className="text-sm font-semibold text-gray-900 mb-0">Canteen Menu</p>
+        <p className="text-sm font-semibold text-gray-900 mb-0 flex items-center gap-1.5 flex-wrap">
+          Canteen Menu
+          {menuLoadFailed && (
+            <span className="text-xs font-medium text-red-600" title="Meniul PDF nu s-a putut încărca la ora programată.">
+              Fail loading
+            </span>
+          )}
+        </p>
         <p className="text-[0.65rem] text-gray-500 mt-0 mb-1 leading-snug">
-          {slots.map((s) => `${s.time} (${s.duration || '15 min'})`).join(' · ')}
+          {slots.map((s) => `${s.time} (${typeof s.duration === 'number' ? s.duration + ' min' : (s.duration || '15 min')})`).join(' · ')}
         </p>
       </div>
       <div className="p-2 rounded-md bg-amber-50 border border-amber-100 flex flex-col gap-0 shrink-0">

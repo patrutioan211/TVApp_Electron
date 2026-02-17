@@ -2,6 +2,7 @@
   "name": "AumovioTVApp",
   "version": "1.0.0",
   "description": "Digital signage app using Electron, Vite, React, Tailwind, and simple-git.",
+  "keywords": ["digital-signage", "tv", "electron", "aumovio"],
   "main": "electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"npm:dev:renderer\" \"npm:dev:electron\"",
@@ -9,11 +10,15 @@
     "dev:electron": "wait-on http://localhost:5174 && set USE_DEV_SERVER=1&& electron .",
     "build": "vite build",
     "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
     "icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "electron-updater": "^6.3.9",
     "hls.js": "^1.6.15",
+    "pdf-to-img": "^5.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
@@ -24,11 +29,27 @@
     "autoprefixer": "^10.4.19",
     "concurrently": "^9.0.0",
     "electron": "^31.0.0",
+    "electron-builder": "^25.1.8",
     "png-to-ico": "^3.0.1",
     "postcss": "^8.4.38",
     "sharp": "^0.33.5",
     "tailwindcss": "^3.4.4",
     "vite": "^5.2.0",
     "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.aumovio.tvapp",
+    "productName": "AumovioTVApp",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*", "content/**/*", "WORKSPACE/**/*", "version.json", "package.json"],
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "publish": { "provider": "generic" }
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false
+    }
   }
 }

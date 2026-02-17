@@ -173,8 +173,8 @@ function InfoCarousel({ sections = {} }) {
   const upcomingBirthdays = upcomingBirthdaysFromWorkspace;
   const upcomingWorkAnniversaries = workAnniversariesFromWorkspace;
   const EMPLOYEES_OF_MONTH_USE = employeesOfMonthFromWorkspace;
-  const JOB_OPENINGS_USE = jobOpenings.length > 0 ? jobOpenings : JOB_OPENINGS;
-  const EVENTS_USE = eventsFromWorkspace.length > 0 ? eventsFromWorkspace : EVENTS;
+  const JOB_OPENINGS_USE = jobOpenings;
+  const EVENTS_USE = eventsFromWorkspace;
 
   const [categoryIndex, setCategoryIndex] = useState(0);
   const [itemIndex, setItemIndex] = useState(0);
@@ -337,8 +337,9 @@ function InfoCarousel({ sections = {} }) {
       }
       case 'job_openings': {
         if (JOB_OPENINGS_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No job openings.</p>;
-        const start = (itemIndex * 2) % JOB_OPENINGS_USE.length;
-        const items = [JOB_OPENINGS_USE[start], JOB_OPENINGS_USE[(start + 1) % JOB_OPENINGS_USE.length]];
+        const take = Math.min(2, JOB_OPENINGS_USE.length);
+        const start = (itemIndex * take) % JOB_OPENINGS_USE.length;
+        const items = take === 1 ? [JOB_OPENINGS_USE[0]] : [JOB_OPENINGS_USE[start], JOB_OPENINGS_USE[(start + 1) % JOB_OPENINGS_USE.length]];
         return (
           <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((j) => (
@@ -352,8 +353,9 @@ function InfoCarousel({ sections = {} }) {
       }
       case 'events': {
         if (EVENTS_USE.length === 0) return <p className="text-xs text-gray-500 py-2">No events.</p>;
-        const start = (itemIndex * 2) % EVENTS_USE.length;
-        const items = [EVENTS_USE[start % EVENTS_USE.length], EVENTS_USE[(start + 1) % EVENTS_USE.length]];
+        const take = Math.min(2, EVENTS_USE.length);
+        const start = (itemIndex * take) % EVENTS_USE.length;
+        const items = take === 1 ? [EVENTS_USE[0]] : [EVENTS_USE[start], EVENTS_USE[(start + 1) % EVENTS_USE.length]];
         return (
           <div className="space-y-2 flex-1 flex flex-col justify-center min-h-0">
             {items.map((e) => (

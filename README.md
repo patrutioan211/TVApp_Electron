@@ -103,6 +103,53 @@ This installs:
 
 ---
 
+### 4b. Restaurant of the Day (optional)
+
+The app can recommend a **Restaurant of the Day** per team using **Google Places API** (reviews, price level, quality). It runs **once per 24 hours** (around 00:05–00:25) and updates `WORKSPACE/<team>/canteen_menu/content.json` with a chosen restaurant; the last **20** selections are kept so the same restaurant is not repeated for 20 days. On multiple TVs sharing the same Git repo, whichever instance runs first after midnight updates the file and pushes; the others see `restaurantLastUpdated` and skip.
+
+- In the **dashboard**, set only **Location** (e.g. `Sibiu`) for the Canteen menu section; name and description are filled by the algorithm.
+- Folosește **aceeași cheie** ca pentru Traffic/Locations: `GOOGLE_MAPS_API_KEY` din `.env`. În Google Cloud activează și **Places API** (vezi mai jos).
+- History is stored in `WORKSPACE/<team>/canteen_menu/restaurant_history.json`.
+
+**Google Cloud:** activează **Places API** (nu doar Maps/Distance Matrix): [APIs & Services → Library](https://console.cloud.google.com/apis/library) → caută „Places API” → Enable. Aceeași cheie (API key) poate fi folosită pentru Maps, Distance Matrix și Places.
+
+**Preț:** Google oferă un **credit lunar gratuit** (circa 200 USD/lună) pentru Maps Platform. Pentru câteva request-uri la 5 minute (Text Search + Place Details), consumul rămâne de obicei în creditul gratuit. După ce creditul e epuizat, se facturează per request (vezi [Places API – Usage and Billing](https://developers.google.com/maps/documentation/places/web-service/usage-and-billing)).
+
+**Sincronizare pe mai multe TV-uri (același departament):** Toate TV-urile folosesc același repo Git (pull la 15 min). Restaurant of the Day rulează **o dată pe 24h** (în jur de 00:05–00:25, cu random). Fiecare TV:
+
+1. Face **pull** la ora programată.
+2. Verifică în `content.json` câmpul **`restaurantLastUpdated`**: dacă e data zilei de azi → nu face nimic (alt TV a făcut deja update-ul).
+3. Dacă nu e setat pentru azi → acest TV apelează API-ul, scrie restaurantul și **face push** în Git. Celelalte TV-uri vor vedea la următorul pull același restaurant.
+
+Nu e nevoie de variabile de mediu: orice TV poate fi cel care face update-ul; detecția e automată după dată. Asigură-te că toate au acces la **push** în același repo (credentiale Git configurate).
+
+---
+
+### 4c. Versionare și update automat
+
+- În rădăcina proiectului există **`version.json`** cu câmpul `version` (ex. `"1.0.0"`).
+- Aplicația face **pull** la fiecare **30 minute** și compară versiunea din `version.json` cu cea la care a pornit.
+- **Dacă versiunea s-a schimbat**:
+  - Dacă e setat **`UPDATE_FEED_URL`** în `.env` (URL de bază unde sunt hostate build-urile), aplicația folosește **electron-updater**: descarcă noul installer, instalează și repornește.
+  - Dacă nu e setat feed URL, aplicația doar **se repornește** (relaunch).
+
+**Cum folosești update-ul (cu push pe Git):**
+
+1. Actualizezi versiunea: în **`version.json`** și **`package.json`** pui aceeași versiune (ex. `"1.0.1"`).
+2. Build release: rulezi `npm run dist` sau `npm run dist:win`. În **`release/`** apar installer-ul (exe) și **`latest.yml`**.
+3. Uploadezi pe server: pui fișierele din `release/` (exe + `latest.yml`) pe serverul HTTP la URL-ul folosit în **`UPDATE_FEED_URL`** (ex. `https://your-server.com/releases`).
+4. Push pe Git: comitezi și trimiți modificările (inclusiv `version.json`, `package.json` și orice alte schimbări):
+   ```bash
+   git add version.json package.json
+   git commit -m "Release v1.0.1"
+   git push
+   ```
+5. Pe TV-uri: în maxim **30 de minute** fiecare instanță face pull, vede noua versiune în `version.json`, descarcă noul installer de la `UPDATE_FEED_URL` și se repornește cu versiunea nouă.
+
+Pe fiecare TV trebuie setat în **`.env`**: `UPDATE_FEED_URL=https://your-server.com/path-to-releases` (același URL unde ai pus exe + `latest.yml`).
+
+---
+
 ### 5. Running the App in Development
 
 From the project root:
@@ -173,15 +220,19 @@ npm start
 
 ---
 
-### 9. Packaging (Optional)
+### 9. Packaging și update
 
-This example includes only minimal scripts for development and running with built files.
+- **Build instalabil (Windows x64):**
+  ```bash
+  npm run dist
+  ```
+  sau `npm run dist:win`. Output în `release/` (exe NSIS + `latest.yml`).
 
-If you want to package a distributable app:
-
-1. Add `electron-builder` configuration in `package.json` or a dedicated config file.
-2. Add a `build:electron` or `dist` script.
-3. Follow `electron-builder` docs for app IDs, icons, and platform targets.
+- Pentru **update automat pe TV-uri**: pune în `.env` (pe mașinile TV sau în mediul de deploy):
+  ```env
+  UPDATE_FEED_URL=https://your-server.com/path-to-releases
+  ```
+  Serverul trebuie să servească fișierele din `release/` (installer + `latest.yml`). La schimbarea versiunii în `version.json` și push, TV-urile vor descărca și instala noua versiune la următorul ciclu de 30 min (vezi secțiunea 4c).
 
 ---
 

@@ -13,6 +13,7 @@ function SlidePlayer({ slides }) {
   const [isVisible, setIsVisible] = useState(true);
   const [slideStartTime, setSlideStartTime] = useState(() => Date.now());
   const [elapsed, setElapsed] = useState(0);
+  const [displayKey, setDisplayKey] = useState(0);
   const timerRef = useRef(null);
 
   const currentSlide = slides && slides[currentIndex];
@@ -29,6 +30,7 @@ function SlidePlayer({ slides }) {
     ['pptx', 'word', 'excel'].includes(displayType) ||
     (displayType === 'web_url' && currentSlide?.converted) ||
     (displayType === 'pdf' && currentSlide?.converted);
+  const usesInternalDone = isDocImages;
   const durationSeconds = Math.max(1, Number(currentSlide?.duration || 10));
   const durationMs = isDocImages
     ? (currentSlide?.pageCount ?? 1) * durationSeconds * 1000
@@ -51,6 +53,7 @@ function SlidePlayer({ slides }) {
     setIsVisible(false);
     setTimeout(() => {
       setCurrentIndex((prev) => (prev + 1) % slides.length);
+      setDisplayKey((k) => k + 1);
       setIsVisible(true);
     }, 700);
   };
@@ -68,12 +71,12 @@ function SlidePlayer({ slides }) {
 
     setSlideStartTime(Date.now());
     setElapsed(0);
-    if (!isDocImages) scheduleNextSlide();
+    if (!usesInternalDone) scheduleNextSlide();
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, slides.length, currentSlide?.duration, currentSlide?.src, isVideoExternal, isDocImages]);
+  }, [currentIndex, slides.length, currentSlide?.duration, currentSlide?.src, isVideoExternal, usesInternalDone]);
 
   // Cooldown bar: update elapsed every 200ms
   useEffect(() => {
@@ -98,7 +101,8 @@ function SlidePlayer({ slides }) {
         <Slide
           key={slides && slides.length <= 1 ? `loop-${loopCount}` : currentIndex}
           slide={currentSlide}
-          onSlideDone={isDocImages ? goNext : undefined}
+          onSlideDone={usesInternalDone ? goNext : undefined}
+          displayKey={displayKey}
         />
       </div>
 

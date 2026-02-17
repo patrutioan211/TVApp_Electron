@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -53,6 +54,86 @@ def _team_path(name: str) -> Path:
 @app.route("/")
 def index():
     return send_from_directory("templates", "dashboard.html")
+
+
+@app.route("/api/restaurant-status", methods=["GET"])
+def restaurant_status():
+    """
+    Status Restaurant of the Day: doar citire din WORKSPACE (Git), fără interfață grafică.
+    OK (verde) dacă restaurantul e actualizat în ultimele 24h sau în ziua respectivă (azi/ieri);
+    NOK (roșu) altfel. Folosește restaurant_api_status.json (lastRun) sau content.json (restaurantLastUpdated).
+    """
+    try:
+        if not WORKSPACE_DIR or not WORKSPACE_DIR.exists():
+            return jsonify({
+                "ok": False,
+                "message": "WORKSPACE nu este disponibil (verifică WORKSPACE_PATH)",
+                "lastRun": None,
+            })
+
+        now = datetime.now(timezone.utc)
+        cutoff_24h = now - timedelta(hours=24)
+        today_str = now.strftime("%Y-%m-%d")
+        yesterday_str = (now - timedelta(days=1)).strftime("%Y-%m-%d")
+        last_run_iso = None
+        ok = False
+        message = ""
+
+        # 1) Încearcă restaurant_api_status.json (lastRun în ultimele 24h)
+        p_status = WORKSPACE_DIR / "restaurant_api_status.json"
+        if p_status.exists():
+            try:
+                data = json.loads(p_status.read_text(encoding="utf-8"))
+                last_run_iso = data.get("lastRun")
+                if last_run_iso:
+                    try:
+                        dt = datetime.fromisoformat(last_run_iso.replace("Z", "+00:00"))
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        if dt >= cutoff_24h:
+                            ok = True
+                        last_run_iso = dt.isoformat()
+                    except (ValueError, TypeError):
+                        pass
+            except Exception:
+                pass
+
+        # 2) Fallback: content.json per echipă, restaurantLastUpdated (azi sau ieri)
+        if not ok:
+            try:
+                for team_dir in WORKSPACE_DIR.iterdir():
+                    if not team_dir.is_dir() or team_dir.name.startswith("."):
+                        continue
+                    content_path = team_dir / "canteen_menu" / "content.json"
+                    if not content_path.exists():
+                        continue
+                    try:
+                        content = json.loads(content_path.read_text(encoding="utf-8"))
+                        updated = (content.get("restaurantLastUpdated") or "").strip()
+                        if updated in (today_str, yesterday_str):
+                            ok = True
+                            if not last_run_iso:
+                                last_run_iso = f"{updated}T00:00:00+00:00"
+                            break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
+        if not message:
+            message = "OK" if ok else "Niciun update în ultimele 24h"
+
+        return jsonify({
+            "ok": ok,
+            "message": message,
+            "lastRun": last_run_iso,
+        })
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "message": f"Eroare: {e!s}",
+            "lastRun": None,
+        })
 
 
 # ---------- API Echipe ----------
@@ -820,13 +901,22 @@ def git_push():
             timeout=10,
         )
         out = (r.stdout or "") + (r.stderr or "")
-        if r.returncode != 0 and "nothing to commit" not in out.lower():
+        nothing_to_commit = r.returncode != 0 and "nothing to commit" in out.lower()
+        if r.returncode != 0 and not nothing_to_commit:
             return jsonify({"ok": False, "error": (r.stderr or r.stdout or "Commit failed.").strip()})
         r2 = subprocess.run(["git", "push"], cwd=cwd, capture_output=True, text=True, timeout=60)
+        push_out = (r2.stdout or "") + (r2.stderr or "")
         if r2.returncode != 0:
             err = (r2.stderr or r2.stdout or "Push failed.").strip()
             return jsonify({"ok": False, "error": err})
         new_commit = _git_head_commit(cwd)
+        if nothing_to_commit or "everything up-to-date" in push_out.lower():
+            return jsonify({
+                "ok": True,
+                "message": "Nothing to push. Your branch is up to date with origin/master.",
+                "commit": new_commit or "",
+                "alreadyUpToDate": True,
+            })
         return jsonify({"ok": True, "message": "Push successful.", "commit": new_commit or ""})
     except subprocess.TimeoutExpired:
         return jsonify({"ok": False, "error": "Timeout."})

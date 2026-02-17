@@ -57,6 +57,27 @@ async function doGitSync() {
 }
 
 /**
+ * Push la Git cu fișierele date (cale relativă la CONTENT_DIR / rădăcina repo).
+ * Folosit de Restaurant of the Day după ce scrie content.json + restaurant_history.json.
+ * @param {string[]} relativePaths - ex: ['WORKSPACE/BSW/canteen_menu/content.json', 'WORKSPACE/BSW/canteen_menu/restaurant_history.json']
+ * @returns {Promise<boolean>} true dacă push-ul a reușit
+ */
+async function doGitPush(relativePaths) {
+  try {
+    const gitClient = await ensureGit();
+    if (!gitClient || !Array.isArray(relativePaths) || relativePaths.length === 0) return false;
+    await gitClient.add(relativePaths);
+    await gitClient.commit('Restaurant of the day update');
+    await gitClient.push();
+    console.log('Git push OK:', relativePaths.length, 'files');
+    return true;
+  } catch (err) {
+    console.error('Git push error:', err.message);
+    return false;
+  }
+}
+
+/**
  * Git pull la 15 min. Apelează onUpdate() doar când pull-ul a adus un commit nou,
  * astfel view-ul reîncarcă playlist + tot conținutul (secțiuni) din workspace.
  */
@@ -80,6 +101,8 @@ function initGitSync(onUpdate) {
 }
 
 module.exports = {
-  initGitSync
+  initGitSync,
+  doGitSync,
+  doGitPush
 };
 

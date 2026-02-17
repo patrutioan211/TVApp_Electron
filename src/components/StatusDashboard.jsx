@@ -128,10 +128,39 @@ function secToMs(sec, defaultSec) {
   return s * 1000;
 }
 
+const UPTIME_CHECK_MS = 15 * 60 * 1000; // 15 minute
+
 export default function StatusDashboard({ sections = {} }) {
   const UPTIME_SERVICES = (sections.uptime_services?.services && Array.isArray(sections.uptime_services.services)) ? sections.uptime_services.services : UPTIME_SERVICES_DEFAULT;
   const PROJECTS_IN_WORK = (sections.projects_info?.projects && Array.isArray(sections.projects_info.projects)) ? sections.projects_info.projects : PROJECTS_IN_WORK_DEFAULT;
   const MEETING_ROOMS = (sections.meeting_rooms?.rooms && Array.isArray(sections.meeting_rooms.rooms)) ? sections.meeting_rooms.rooms : MEETING_ROOMS_DEFAULT;
+
+  const [serviceStatus, setServiceStatus] = useState({});
+
+  useEffect(() => {
+    const services = (sections.uptime_services?.services && Array.isArray(sections.uptime_services.services))
+      ? sections.uptime_services.services
+      : UPTIME_SERVICES_DEFAULT;
+    const getUrl = (s) => (s && typeof s.statusUrl === 'string') ? s.statusUrl.trim() : '';
+    function check() {
+      const checkUrl = typeof window.api?.checkUptimeUrl === 'function'
+        ? (url) => window.api.checkUptimeUrl(url).then((r) => r?.ok === true)
+        : (url) => fetch(url, { method: 'GET', cache: 'no-store' }).then((res) => res.ok);
+      services.forEach((s) => {
+        const statusUrl = getUrl(s);
+        if (!statusUrl) {
+          setServiceStatus((prev) => ({ ...prev, [s.id]: 'no_url' }));
+          return;
+        }
+        checkUrl(statusUrl)
+          .then((ok) => setServiceStatus((prev) => ({ ...prev, [s.id]: ok ? 'up' : 'down' })))
+          .catch(() => setServiceStatus((prev) => ({ ...prev, [s.id]: 'down' })));
+      });
+    }
+    check();
+    const id = setInterval(check, UPTIME_CHECK_MS);
+    return () => clearInterval(id);
+  }, [sections.uptime_services]);
 
   const INTERVAL_UPTIME_MS = secToMs(sections.uptime_services?.cooldownSeconds, 120);
   const INTERVAL_PROJECT_MS = secToMs(sections.projects_info?.cooldownSeconds, 120);
@@ -144,8 +173,9 @@ export default function StatusDashboard({ sections = {} }) {
     () => [1, PROJECTS_IN_WORK.length],
     (cat) => (cat === 0 ? INTERVAL_UPTIME_MS : INTERVAL_PROJECT_MS)
   );
+  const hasMeetingImage = !!(sections.meeting_rooms?.image && String(sections.meeting_rooms.image).trim());
   const [cat2, item2, lastTick2] = useCarousel(
-    () => [MEETING_ROOMS.length, 1],
+    () => [hasMeetingImage ? 1 : MEETING_ROOMS.length, 1],
     (cat) => (cat === 0 ? INTERVAL_ROOMS_MS : INTERVAL_STOCK_MS)
   );
 
@@ -183,7 +213,12 @@ export default function StatusDashboard({ sections = {} }) {
                   <span className={compact ? 'text-xs font-semibold text-gray-800' : 'text-sm font-semibold text-gray-800'}>
                     {s.name}
                   </span>
-                  <span className={`shrink-0 rounded-full ${s.up ? 'bg-emerald-500' : 'bg-red-500'} ${compact ? 'h-1.5 w-1.5' : 'h-2 w-2'}`} title={s.up ? 'Up' : 'Down'} />
+                  <span
+                    className={`shrink-0 rounded-full ${
+                      serviceStatus[s.id] === 'no_url' ? 'bg-gray-600' : serviceStatus[s.id] === 'up' ? 'bg-emerald-500' : 'bg-red-500'
+                    } ${compact ? 'h-1.5 w-1.5' : 'h-2 w-2'}`}
+                    title={serviceStatus[s.id] === 'no_url' ? 'No URL' : serviceStatus[s.id] === 'up' ? 'Up' : 'Down'}
+                  />
                 </div>
               ))}
             </div>
@@ -253,6 +288,20 @@ export default function StatusDashboard({ sections = {} }) {
       </div>
 
       {/* Field 2 */}
+      {field2Categories[safeCat2] === 'rooms' && (sections.meeting_rooms?.image && String(sections.meeting_rooms.image).trim()) ? (
+        <div className="rounded-xl border border-gray-200 shadow-sm min-h-0 overflow-hidden relative h-full">
+          <img
+            src={(sections.meeting_rooms.image.startsWith('http') || sections.meeting_rooms.image.startsWith('workspace://'))
+              ? sections.meeting_rooms.image
+              : 'workspace://./' + sections.meeting_rooms.image.replace(/^\.\/+/, '')}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+          <span className="absolute top-2 right-2 text-[0.65rem] font-medium tabular-nums text-white bg-black/50 backdrop-blur-sm px-2 py-1 rounded">
+            {countdown2}s
+          </span>
+        </div>
+      ) : (
       <div className="rounded-xl bg-surface border border-gray-200 shadow-sm px-3 py-2 flex flex-col min-h-0 overflow-hidden">
         <div className="flex items-center justify-between mb-1 shrink-0">
           <span className="text-xs uppercase tracking-[0.15em] text-gray-500 truncate">{field2Label}</span>
@@ -319,6 +368,7 @@ export default function StatusDashboard({ sections = {} }) {
           );
         })()}
       </div>
+      )}
     </div>
   );
 }

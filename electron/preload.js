@@ -11,10 +11,21 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('playlist-updated', listener);
     return () => ipcRenderer.removeListener('playlist-updated', listener);
   },
+  onCanteenMenuShow: (callback) => {
+    const listener = (_, payload) => callback(payload);
+    ipcRenderer.on('canteen-menu-show', listener);
+    return () => ipcRenderer.removeListener('canteen-menu-show', listener);
+  },
+  onCanteenMenuLoadFailed: (callback) => {
+    const listener = (_, payload) => callback(payload);
+    ipcRenderer.on('canteen-menu-load-failed', listener);
+    return () => ipcRenderer.removeListener('canteen-menu-load-failed', listener);
+  },
   getTrafficData: () => ipcRenderer.invoke('get-traffic-data'),
   getSectionContent: (team, sectionId) => ipcRenderer.invoke('get-section-content', team, sectionId),
   getAllSectionsContent: (team) => ipcRenderer.invoke('get-all-sections-content', team),
   getWorkspaceFolderImages: (path) => ipcRenderer.invoke('get-workspace-folder-images', path),
+  checkUptimeUrl: (url) => ipcRenderer.invoke('check-uptime-url', url),
   quitApp: () => ipcRenderer.invoke('quit-app'),
   openAdminWindow: () => ipcRenderer.invoke('open-admin-window'),
   authRegister: (email, password) => ipcRenderer.invoke('auth-register', email, password),

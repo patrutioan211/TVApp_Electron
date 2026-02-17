@@ -76,6 +76,11 @@ export function getSlideDisplay(slide) {
   if (rawType === 'web_url') {
     return { type: 'web_url', src };
   }
-
+  if (rawType === 'web_live') {
+    return { type: 'web_live', src };
+  }
+  if (rawType === 'powerbi') {
+    return { type: 'powerbi', src };
+  }
   return { type: 'web_url', src };
 }

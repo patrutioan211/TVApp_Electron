@@ -20,9 +20,20 @@ export default function DashboardPage() {
     loadTeams().finally(() => setLoading(false));
   }, []);
 
+
   useEffect(() => {
     if (!selectedTeam || !window.api?.getPlaylistForTeam) return;
-    window.api.getPlaylistForTeam(selectedTeam).then((data) => setPlaylist(data || { slides: [] }));
+    window.api.getPlaylistForTeam(selectedTeam).then((data) => {
+      const raw = data?.slides ?? [];
+      const slides = raw.map((s) => {
+        if ((s.type || '').toLowerCase() === 'social_media') {
+          const { posts, ...rest } = s;
+          return { ...rest, type: 'web_url', src: s.src || '' };
+        }
+        return s;
+      });
+      setPlaylist({ slides });
+    });
   }, [selectedTeam]);
 
   const handleCreateTeam = async (e) => {
@@ -181,16 +192,26 @@ export default function DashboardPage() {
                     <input
                       value={slide.src || ''}
                       onChange={(e) => updateSlide(slide.id, 'src', e.target.value)}
-                      placeholder="src (URL sau cale)"
+                      placeholder={(slide.type || '') === 'powerbi' ? 'https://app.powerbi.com/view?r=...' : 'src (URL sau cale)'}
                       className="w-full mt-1 text-sm rounded border border-gray-300 px-2 py-1"
                     />
-                    <div className="flex gap-2 mt-1">
+                    {(slide.type || '') === 'powerbi' && (
+                      <input
+                        value={slide.powerBiPage || ''}
+                        onChange={(e) => updateSlide(slide.id, 'powerBiPage', e.target.value)}
+                        placeholder="Pagină report (pageName, opțional)"
+                        className="w-full mt-1 text-sm rounded border border-gray-300 px-2 py-1"
+                      />
+                    )}
+                    <div className="flex gap-2 mt-1 flex-wrap items-center">
                       <select
                         value={slide.type || 'web_url'}
                         onChange={(e) => updateSlide(slide.id, 'type', e.target.value)}
                         className="text-sm rounded border border-gray-300 px-2 py-1"
                       >
                         <option value="web_url">web_url</option>
+                        <option value="web_live">web_live</option>
+                        <option value="powerbi">powerbi (Power BI)</option>
                         <option value="image">image</option>
                         <option value="video">video</option>
                         <option value="vimeo">vimeo</option>
@@ -204,6 +225,44 @@ export default function DashboardPage() {
                         placeholder="durata (s)"
                         className="w-20 text-sm rounded border border-gray-300 px-2 py-1"
                       />
+                      {(slide.type || '') === 'web_live' && (
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <span className="text-gray-500">Zoom fit %:</span>
+                          <select
+                            value={slide.webLiveFit ?? 250}
+                            onChange={(e) => updateSlide(slide.id, 'webLiveFit', Number(e.target.value))}
+                            className="text-sm rounded border border-gray-300 px-2 py-1"
+                          >
+                            <option value={50}>50% (zoom in)</option>
+                            <option value={75}>75% (zoom in)</option>
+                            <option value={100}>100% (1:1)</option>
+                            <option value={150}>150% (scale 0.67)</option>
+                            <option value={200}>200% (scale 0.5)</option>
+                            <option value={250}>250% (scale 0.4)</option>
+                            <option value={300}>300% (scale 0.33)</option>
+                            <option value={400}>400% (scale 0.25)</option>
+                          </select>
+                        </label>
+                      )}
+                      {(slide.type || '') === 'powerbi' && (
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <span className="text-gray-500">Zoom fit %:</span>
+                          <select
+                            value={slide.powerBiFit ?? 100}
+                            onChange={(e) => updateSlide(slide.id, 'powerBiFit', Number(e.target.value))}
+                            className="text-sm rounded border border-gray-300 px-2 py-1"
+                          >
+                            <option value={50}>50% (zoom in)</option>
+                            <option value={75}>75% (zoom in)</option>
+                            <option value={100}>100% (1:1)</option>
+                            <option value={150}>150%</option>
+                            <option value={200}>200%</option>
+                            <option value={250}>250%</option>
+                            <option value={300}>300%</option>
+                            <option value={400}>400%</option>
+                          </select>
+                        </label>
+                      )}
                     </div>
                   </li>
                 ))}

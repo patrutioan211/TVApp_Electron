@@ -109,11 +109,13 @@ const CATEGORIES = [
 
 const CATEGORY_LABELS = {
   customer_feedback: 'Customer feedback',
-  quote_of_day: 'Quote of the day',
-  did_you_know: 'Did you know',
-  word_of_day: 'Word of the day',
+  quote_of_day: 'Quote of the Day',
+  did_you_know: 'Did you know !',
+  word_of_day: 'Word of the Day',
   reminder_healthy: 'Stay healthy'
 };
+
+const EMPTY_MESSAGE = 'Nothing loaded. Configure in Dashboard.';
 
 export default function VisitorsCarousel({ sections = {} }) {
   const cooldownSeconds = Math.max(5, Math.min(3600, Number(sections.info_section?.cooldownSeconds) || 10));
@@ -151,8 +153,11 @@ export default function VisitorsCarousel({ sections = {} }) {
   const renderContent = () => {
     switch (category) {
       case 'customer_feedback': {
+        if (customerFeedback.length === 0) {
+          return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
+        }
         const item = customerFeedback[itemIndex];
-        if (!item) return null;
+        if (!item) return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
         return (
           <div className="space-y-1.5 text-left w-full">
             <p className="text-base font-semibold text-gray-800 truncate">{item.client}</p>
@@ -161,26 +166,39 @@ export default function VisitorsCarousel({ sections = {} }) {
         );
       }
       case 'quote_of_day': {
-        const pool = quotesOfDayRaw.filter((q) => (typeof q === 'object' && q && q.used === true) || typeof q === 'string');
-        const list = pool.length > 0 ? pool : quotesOfDayRaw;
-        const quote = list[dayIndex % Math.max(1, list.length)];
-        if (!quote) return null;
+        const list = quotesOfDayRaw.filter((q) => {
+          const t = typeof q === 'string' ? q.trim() : (q && typeof q === 'object' && (q.quote != null ? String(q.quote).trim() : ''));
+          return t.length > 0;
+        });
+        if (list.length === 0) {
+          return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
+        }
+        const seed = dayIndex * 2654435761;
+        const quoteIndex = (seed >>> 0) % list.length;
+        const quote = list[quoteIndex];
+        if (!quote) return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
         const text = typeof quote === 'string' ? quote : (quote.quote != null ? quote.quote : quote.text || '');
         return (
           <p className="text-sm text-gray-700 leading-snug italic line-clamp-3 text-left w-full">&ldquo;{text}&rdquo;</p>
         );
       }
       case 'did_you_know': {
+        if (didYouKnow.length === 0) {
+          return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
+        }
         const item = didYouKnow[dayIndex % Math.max(1, didYouKnow.length)];
-        if (!item) return null;
+        if (!item) return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
         const fact = item.fact != null ? item.fact : (typeof item === 'string' ? item : '');
         return (
           <p className="text-sm text-gray-600 leading-snug line-clamp-3 text-left w-full">{fact}</p>
         );
       }
       case 'word_of_day': {
+        if (wordOfDay.length === 0) {
+          return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
+        }
         const item = wordOfDay[dayIndex % Math.max(1, wordOfDay.length)];
-        if (!item) return null;
+        if (!item) return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
         const word = item.word != null ? item.word : '';
         const meaning = item.meaning != null ? item.meaning : '';
         return (
@@ -191,6 +209,9 @@ export default function VisitorsCarousel({ sections = {} }) {
         );
       }
       case 'reminder_healthy': {
+        if (stretchingItems.length === 0) {
+          return <p className="text-sm text-gray-500 italic w-full">{EMPTY_MESSAGE}</p>;
+        }
         return (
           <div className="space-y-1.5 text-left w-full">
             {stretchingItems.map((s, i) => (

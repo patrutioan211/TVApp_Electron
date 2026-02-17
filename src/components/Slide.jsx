@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import Hls from 'hls.js';
 import { getSlideDisplay } from '../utils/slideUtils.js';
 
-function Slide({ slide, onSlideDone }) {
+function Slide({ slide, onSlideDone, displayKey = 0 }) {
   if (!slide) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gray-200">
@@ -91,6 +91,83 @@ function Slide({ slide, onSlideDone }) {
         onDone={onSlideDone}
         fillWidth={slide.fillWidth === true}
       />
+    );
+  }
+
+  if (type === 'web_live') {
+    if (!src) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400">
+          <p className="text-sm">Web Live: introduceți URL în playlist.</p>
+          {commonOverlay}
+        </div>
+      );
+    }
+    const fit = Math.max(50, Math.min(500, Number(slide.webLiveFit) || 250));
+    const scale = 100 / fit;
+    return (
+      <div className="w-full h-full relative bg-black overflow-hidden">
+        <div
+          className="absolute top-0 left-0 origin-top-left"
+          style={{
+            width: `${fit}%`,
+            height: `${fit}%`,
+            transform: `scale(${scale})`
+          }}
+        >
+          <iframe
+            key={`web_live_${displayKey}`}
+            src={src}
+            title={title || 'Web live'}
+            className="w-full h-full border-0 block"
+            style={{ pointerEvents: 'none' }}
+            allow="fullscreen; clipboard-read; clipboard-write"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+        {commonOverlay}
+      </div>
+    );
+  }
+
+  if (type === 'powerbi') {
+    if (!src) {
+      return (
+        <div className="w-full h-full flex items-center justify-center bg-gray-800 text-gray-400">
+          <p className="text-sm">Power BI: introduceți URL report/dashboard în playlist.</p>
+          {commonOverlay}
+        </div>
+      );
+    }
+    const baseUrl = src.trim();
+    const pageName = (slide.powerBiPage || '').trim();
+    const iframeSrc = pageName
+      ? baseUrl + (baseUrl.includes('?') ? '&' : '?') + 'pageName=' + encodeURIComponent(pageName)
+      : baseUrl;
+    const fit = Math.max(50, Math.min(500, Number(slide.powerBiFit) || 100));
+    const scale = 100 / fit;
+    return (
+      <div className="w-full h-full relative bg-black overflow-hidden">
+        <div
+          className="absolute top-0 left-0 origin-top-left"
+          style={{
+            width: `${fit}%`,
+            height: `${fit}%`,
+            transform: `scale(${scale})`
+          }}
+        >
+          <iframe
+            key={`powerbi_${displayKey}`}
+            src={iframeSrc}
+            title={title || 'Power BI'}
+            className="w-full h-full border-0 block"
+            style={{ pointerEvents: 'none' }}
+            allow="fullscreen"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        </div>
+        {commonOverlay}
+      </div>
     );
   }
 

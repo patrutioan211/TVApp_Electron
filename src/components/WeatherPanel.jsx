@@ -11,20 +11,24 @@ const ANNOUNCEMENTS_DEFAULT = [
 
 const REFRESH_MS = 15 * 60 * 1000; // 15 min
 
-function toAnnouncementText(raw) {
-  if (typeof raw === 'string' && raw.trim()) return raw.trim();
-  if (raw && typeof raw === 'object')
-    return String(raw.text ?? raw.content ?? raw.body ?? raw.title ?? '').trim();
-  return '';
+function toAnnouncementItem(raw) {
+  if (typeof raw === 'string' && raw.trim()) return { text: raw.trim(), color: '', bold: false };
+  if (raw && typeof raw === 'object') {
+    const text = String(raw.text ?? raw.content ?? raw.body ?? raw.title ?? '').trim();
+    const color = (raw.color && typeof raw.color === 'string') ? raw.color.trim() : '';
+    const bold = Boolean(raw.bold);
+    return { text, color, bold };
+  }
+  return { text: '', color: '', bold: false };
 }
 
 function WeatherPanel({ announcements: announcementsFromWorkspace }) {
   const rawItems = (announcementsFromWorkspace?.items && Array.isArray(announcementsFromWorkspace.items))
     ? announcementsFromWorkspace.items
-    : ANNOUNCEMENTS_DEFAULT;
+    : ANNOUNCEMENTS_DEFAULT.map((t) => ({ text: t, color: '', bold: false }));
   const ANNOUNCEMENTS = (() => {
-    const normalized = rawItems.map(toAnnouncementText).filter(Boolean);
-    return normalized.length > 0 ? normalized : ANNOUNCEMENTS_DEFAULT;
+    const normalized = rawItems.map(toAnnouncementItem).filter((a) => a.text);
+    return normalized.length > 0 ? normalized : ANNOUNCEMENTS_DEFAULT.map((t) => ({ text: t, color: '', bold: false }));
   })();
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -80,8 +84,8 @@ function WeatherPanel({ announcements: announcementsFromWorkspace }) {
   const cooldownPercent = Math.max(0, Math.min(100, 100 - (elapsed / COOLDOWN_MS) * 100));
   const visibleAnnouncements = Array.from({ length: visibleCount }, (_, k) => {
     const idx = (announcementIndex + k) % ANNOUNCEMENTS.length;
-    const text = ANNOUNCEMENTS[idx] || '';
-    return { id: `${announcementIndex}-${k}`, text };
+    const item = ANNOUNCEMENTS[idx] || { text: '', color: '', bold: false };
+    return { id: `${announcementIndex}-${k}`, ...item };
   });
 
   const details = weather
@@ -164,10 +168,14 @@ function WeatherPanel({ announcements: announcementsFromWorkspace }) {
           {visibleAnnouncements.map((a) => {
             const raw = (a.text || '').trim();
             const html = raw || '—';
+            const style = {};
+            if (a.color && /^#[0-9A-Fa-f]{6}$/.test(a.color)) style.color = a.color;
+            if (a.bold) style.fontWeight = 'bold';
             return (
               <div
                 key={a.id}
-                className="text-sm font-medium text-gray-800 leading-snug announcement-html shrink-0"
+                className={'text-sm font-medium leading-snug announcement-html shrink-0' + (!style.color ? ' text-gray-800' : '')}
+                style={Object.keys(style).length ? style : undefined}
                 dangerouslySetInnerHTML={{ __html: html }}
               />
             );

@@ -56,14 +56,14 @@
     .section-object-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
     .section-object-fields label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 2px; }
     .sections-team-label { color: var(--accent); font-weight: 600; }
-    .slide-row { display: grid; grid-template-columns: 90px 1fr 64px 72px 72px 1fr 1fr 100px 72px 72px 1fr 64px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.85rem; }
+    .slide-row { display: grid; grid-template-columns: 90px 1fr 64px 72px 72px 72px 1fr 1fr 100px 72px 72px 1fr 64px; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #3d434e; font-size: 0.85rem; }
     .slide-row > button { justify-self: center; }
     .slide-row .row-action { justify-self: center; display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
     .slide-row .range-input { min-width: 0; font-size: 0.8rem; padding: 4px 8px; }
     .slide-row .range-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
     .slide-row .sound-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
     .slide-row .fill-readonly { font-size: 0.8rem; color: var(--muted); padding: 4px 8px; }
-    .slide-row .sound-cell, .slide-row .fill-cell { width: 100%; min-width: 52px; font-size: 0.85rem; padding: 6px 8px; cursor: pointer; }
+    .slide-row .sound-cell, .slide-row .fill-cell, .slide-row .web-live-fit, .slide-row .powerbi-fit { width: 100%; min-width: 52px; font-size: 0.85rem; padding: 6px 8px; cursor: pointer; }
     .btn-convert { background: #8b5cf6; color: #fff; }
     .converted-label { color: var(--muted); font-size: 0.8rem; padding: 4px 8px; }
     .slide-row .type { min-width: 82px; padding: 6px 8px; }
@@ -120,6 +120,8 @@
     .form-status.ok { background: #1e3a2f; color: #8fdcb4; }
     .form-status.err { background: #3a1e1e; color: #dc8f8f; }
     .form-status.hint { background: #2d323c; color: var(--muted); }
+    .only-delivery-cb { outline: none; }
+    .only-delivery-cb:invalid { box-shadow: none; outline: none; }
     #addSlideModal select, #addSlideModal input:not([readonly]) { cursor: pointer; }
     #addSlideModal input[type="text"], #addSlideModal input[type="number"] { cursor: text; }
     .title-with-status { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; flex-wrap: wrap; }
@@ -129,9 +131,23 @@
     .status-dot.green { background: var(--green); }
     .status-dot.yellow { background: #eab308; }
     .status-dot.red { background: var(--red); }
+    .msg-popup-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 160; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .msg-popup-overlay.hidden { display: none; }
+    .msg-popup-box { background: var(--card); border-radius: 12px; padding: 24px; max-width: 420px; width: 100%; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+    .msg-popup-box p { margin: 0 0 20px; font-size: 1rem; line-height: 1.5; }
+    .msg-popup-box.ok p { color: #8fdcb4; }
+    .msg-popup-box.err p { color: #dc8f8f; }
+    .msg-popup-box .btn-ok { display: block; margin: 0 auto; padding: 10px 24px; font-size: 1rem; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+    .msg-popup-box .btn-ok:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
+  <div class="msg-popup-overlay hidden" id="msgPopupOverlay">
+    <div class="msg-popup-box" id="msgPopupBox">
+      <p id="msgPopupText"></p>
+      <button type="button" class="btn-ok" id="msgPopupOk">OK</button>
+    </div>
+  </div>
   <div class="git-zone">
     <div class="git-widget" id="gitWidget" title="Click pentru a verifica conexiunea Git și a sincroniza repository (pull)">
       <span class="git-dot" id="gitDot"></span>
@@ -180,7 +196,7 @@
       </div>
       <div class="playlist-body">
         <div class="slide-row head">
-          <span>Tip</span><span>Src / URL</span><span>Dur. (sec / pag la doc)</span><span>Sound</span><span>Fill</span><span>Titlu</span><span>Subtitlu</span><span>Range</span><span>Enable</span><span>Disable</span><span>Acțiune</span><span></span>
+          <span>Tip</span><span>Src / URL</span><span>Dur. (sec / pag la doc)</span><span>Sound</span><span>Fill</span><span>Zoom</span><span>Titlu</span><span>Subtitlu</span><span>Range</span><span>Enable</span><span>Disable</span><span>Acțiune</span><span></span>
         </div>
         <div id="slideList"></div>
         <button type="button" id="addSlide" style="margin-top: 12px;" disabled>+ Adaugă slide</button>
@@ -215,6 +231,8 @@
           <option value="image">Image</option>
           <option value="video">Video</option>
           <option value="web_url">Web URL</option>
+          <option value="web_live">Web Live</option>
+          <option value="powerbi">Power BI</option>
           <option value="vimeo">Vimeo</option>
           <option value="hls">Hls Video</option>
           <option value="pdf">PDF</option>
@@ -265,6 +283,27 @@
           <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitleW" /></div>
           <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitleW" /></div>
           <div class="form-group"><label>Afișare</label><select id="modalEnabledW"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="web_live" id="panelWebLive">
+          <div class="form-group"><label>URL (pagina se reîmprospătează la fiecare afișare)</label><input type="text" id="modalWebLiveUrl" placeholder="https://..." /></div>
+          <button type="button" class="small" id="modalWebLiveValidate">Validează URL</button>
+          <div class="form-group"><label>Zoom fit (%)</label><select id="modalWebLiveFit"><option value="50">50% (zoom in)</option><option value="75">75% (zoom in)</option><option value="100">100% (1:1)</option><option value="150">150% (scale 0.67)</option><option value="200">200% (scale 0.5)</option><option value="250" selected>250% (scale 0.4)</option><option value="300">300% (scale 0.33)</option><option value="400">400% (scale 0.25)</option></select></div>
+          <p class="form-status hint">Mai mare = mai mult conținut încadrat, fără scroll.</p>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDurationWebLive" value="60" min="1" /></div>
+          <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitleWebLive" /></div>
+          <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitleWebLive" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledWebLive"><option value="1">Enable</option><option value="0">Disable</option></select></div>
+        </div>
+        <div class="form-panel" data-type="powerbi" id="panelPowerBi">
+          <div class="form-group"><label>URL Report / Dashboard (Power BI)</label><input type="text" id="modalPowerBiUrl" placeholder="https://app.powerbi.com/view?r=..." /></div>
+          <button type="button" class="small" id="modalPowerBiValidate">Validează URL</button>
+          <p class="form-status hint">Link din Power BI Service: Report → File → Embed → Publish to web, sau Share → link de vizualizare.</p>
+          <div class="form-group"><label>Pagină report (pageName, opțional)</label><input type="text" id="modalPowerBiPage" placeholder="ex: ReportSection sau nume pagină" /></div>
+          <div class="form-group"><label>Zoom fit (%)</label><select id="modalPowerBiFit"><option value="50">50%</option><option value="75">75%</option><option value="100" selected>100% (1:1)</option><option value="150">150%</option><option value="200">200%</option><option value="250">250%</option><option value="300">300%</option><option value="400">400%</option></select></div>
+          <div class="form-group"><label>Durata (sec)</label><input type="number" id="modalDurationPowerBi" value="60" min="1" /></div>
+          <div class="form-group"><label>Titlu (opțional)</label><input type="text" id="modalTitlePowerBi" /></div>
+          <div class="form-group"><label>Subtitlu (opțional)</label><input type="text" id="modalSubtitlePowerBi" /></div>
+          <div class="form-group"><label>Afișare</label><select id="modalEnabledPowerBi"><option value="1">Enable</option><option value="0">Disable</option></select></div>
         </div>
         <div class="form-panel" data-type="vimeo" id="panelVimeo">
           <div class="form-group"><label>URL Vimeo</label><input type="text" id="modalVimeoUrl" placeholder="https://vimeo.com/..." /></div>
@@ -351,39 +390,49 @@
   </div>
 
   <script>
-    const api = (path, opts = {}) => fetch(path, { headers: opts.headers || {}, ...opts }).then(r => r.json());
+    const api = async (path, opts = {}) => {
+      const response = await fetch(path, { headers: opts.headers || {}, ...opts });
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        if (!response.ok) throw new Error(response.statusText || 'Request failed');
+        throw e;
+      }
+      return data;
+    };
     let selectedTeam = null;
     let slides = [];
     let gitConnected = false;
 
     const FILE_TYPES = ['image', 'video'];
-    const URL_TYPES = ['web_url', 'vimeo', 'hls'];
+    const URL_TYPES = ['web_url', 'web_live', 'powerbi', 'vimeo', 'hls'];
     const DOC_TYPES = ['pdf', 'pptx', 'word', 'excel'];
     const TYPES = [...FILE_TYPES, ...URL_TYPES, ...DOC_TYPES];
 
     const SECTION_LABELS = {
       announcements: 'Announcements',
       canteen_menu: 'Canteen menu',
-      anniversary: 'Anniversary',
+      anniversary: 'Anniversary & More',
       uptime_services: 'Uptime services',
       info_section: 'Info section',
       projects_info: 'Projects info',
       stretching: 'Stretching',
-      meeting_rooms: 'Meeting rooms',
+      meeting_rooms: 'Meeting rooms - disabled',
       traffic: 'Traffic'
     };
     const COOLDOWN_SECTION_IDS = ['announcements', 'anniversary', 'uptime_services', 'info_section', 'projects_info', 'meeting_rooms'];
     const COOLDOWN_DEFAULTS = { announcements: 120, anniversary: 20, uptime_services: 120, info_section: 10, projects_info: 120, meeting_rooms: 60 };
     // Schema: listKey, columns, defaultItem. itemIsString | htmlEditor | emptySection | customAnniversary | multiListInfo | singleItem | maxItems
     const SECTION_SCHEMAS = {
-      announcements: { listKey: 'items', itemIsString: true, htmlEditor: true, columns: [{ key: 'text', label: 'Text (HTML)' }], defaultItem: '' },
-      canteen_menu: { listKey: 'slots', columns: [{ key: 'time', label: 'Ora' }, { key: 'duration', label: 'Durată' }], defaultItem: { time: '10:30', duration: '15 min' }, extraKeys: ['restaurant'] },
+      announcements: { listKey: 'items', itemIsString: false, htmlEditor: true, columns: [{ key: 'text', label: 'Text (HTML)', htmlEditor: true }, { key: 'color', label: 'Culoare', type: 'color' }, { key: 'bold', label: 'Bold', type: 'checkbox' }], defaultItem: { text: '', color: '#000000', bold: false } },
+      canteen_menu: { listKey: 'slots', columns: [{ key: 'time', label: 'Ora (24h)', type: 'time' }, { key: 'duration', label: 'Durată (min)', type: 'number', min: 1, max: 120 }], defaultItem: { time: '10:30', duration: 15 }, extraKeys: ['restaurant', 'menuPdfUrls'] },
       anniversary: { customAnniversary: true },
       uptime_services: { listKey: 'services', columns: [{ key: 'id', label: 'ID' }, { key: 'name', label: 'Nume serviciu' }, { key: 'statusUrl', label: 'Status URL' }], defaultItem: { id: '', name: '', statusUrl: '' } },
       info_section: { infoSectionEditor: true },
       projects_info: { listKey: 'projects', columns: [{ key: 'name', label: 'Nume' }, { key: 'start', label: 'Start' }, { key: 'end', label: 'End' }, { key: 'status', label: 'Status', type: 'select', options: ['normal', 'task_force', 'maintenance', 'change_request'] }, { key: 'icon', label: 'Icon', type: 'image' }], defaultItem: { name: '', start: '', end: '', status: 'normal', icon: '' } },
       stretching: { listKey: 'items', singleItem: true, maxItems: 1, columns: [{ key: 'video', label: 'Video', type: 'video' }, { key: 'title', label: 'Titlu' }, { key: 'subtitle', label: 'Subtitlu' }, { key: 'time', label: 'Ora (24h)', type: 'time' }, { key: 'duration', label: 'Durată (ex: 10 min)' }], defaultItem: { video: '', title: '', subtitle: '', time: '', duration: '' } },
-      meeting_rooms: { listKey: 'rooms', columns: [{ key: 'name', label: 'Nume sală' }], defaultItem: { name: '' } },
+      meeting_rooms: { listKey: 'rooms', columns: [{ key: 'name', label: 'Nume sală' }], defaultItem: { name: '' }, customMeetingRooms: true },
       traffic: { listKey: 'destinations', maxItems: 3, columns: [{ key: 'destination', label: 'Destinație' }], defaultItem: { destination: '' }, originFixed: 'Aumovio Sibiu - Strada Salzburg' },
       projects_info: { listKey: 'projects', columns: [{ key: 'name', label: 'Nume' }, { key: 'start', label: 'Start' }, { key: 'end', label: 'End' }, { key: 'status', label: 'Status', type: 'select', options: ['normal', 'task_force', 'maintenance', 'change_request'] }, { key: 'icon', label: 'Icon', type: 'image' }], defaultItem: { name: '', start: '', end: '', status: 'normal', icon: '' } }
     };
@@ -391,14 +440,14 @@
       announcements: {
         cooldownSeconds: 120,
         items: [
-          'Quarterly town hall today at 16:00, Sky Auditorium – all teams invited.',
-          'New security badges required from next week. Collect at reception.',
-          'Building maintenance: elevators B block on Saturday 08:00–12:00.',
-          'Canteen closed Friday 14:00–16:00 for staff event.',
-          'Reminder: Please update your project hours in the booking system by EOD.'
+          { text: 'Quarterly town hall today at 16:00, Sky Auditorium – all teams invited.', color: '', bold: false },
+          { text: 'New security badges required from next week. Collect at reception.', color: '', bold: false },
+          { text: 'Building maintenance: elevators B block on Saturday 08:00–12:00.', color: '', bold: false },
+          { text: 'Canteen closed Friday 14:00–16:00 for staff event.', color: '', bold: false },
+          { text: 'Reminder: Please update your project hours in the booking system by EOD.', color: '', bold: false }
         ]
       },
-      canteen_menu: { slots: [{ time: '10:30', duration: '15 min' }, { time: '11:30', duration: '15 min' }], restaurant: { name: 'La Turn', tagline: 'Restaurant & Terrace — recomandat de echipa' } },
+      canteen_menu: { slots: [{ time: '10:30', duration: 15 }, { time: '11:30', duration: 15 }], restaurantLocation: 'Sibiu', restaurant: { name: 'La Turn', tagline: 'Restaurant & Terrace — recomandat de echipa' }, menuPdfItems: [] },
       anniversary: {
         cooldownSeconds: 20,
         people: [
@@ -434,9 +483,9 @@
           { client: 'Drive Systems Inc.', quote: "Aumovio's expertise in the sector made the difference. We highly recommend them." }
         ],
         quotesOfDay: [
-          { quote: "Innovation is not about saying yes to everything. It's about saying no to all but the most crucial features.", used: true },
-          { quote: 'The best time to plant a tree was 20 years ago. The second best time is now.', used: true },
-          { quote: 'Quality is not an act, it is a habit.', used: true }
+          { quote: "Innovation is not about saying yes to everything. It's about saying no to all but the most crucial features." },
+          { quote: 'The best time to plant a tree was 20 years ago. The second best time is now.' },
+          { quote: 'Quality is not an act, it is a habit.' }
         ],
         didYouKnow: [
           { fact: 'The automotive industry is one of the largest R&D investors globally, with billions spent on electrification and autonomous driving each year.' },
@@ -470,7 +519,8 @@
           { name: 'Room A' },
           { name: 'Room B' },
           { name: 'Room C' }
-        ]
+        ],
+        image: ''
       },
       traffic: {
         origin: 'Aumovio Sibiu - Strada Salzburg',
@@ -511,17 +561,23 @@
 
     document.getElementById('gitWidget').addEventListener('click', async () => {
       const dot = document.getElementById('gitDot');
+      if (!dot) return;
       dot.style.opacity = '0.6';
       setLoading(true, 'Syncing...');
       let pullOk = false;
       try {
         const pullRes = await api('/api/git/pull', { method: 'POST' });
-        pullOk = pullRes.ok;
+        pullOk = pullRes && pullRes.ok;
       } catch (e) {}
-      const res = await api('/api/git/connect');
+      let res;
+      try {
+        res = await api('/api/git/connect');
+      } catch (e) {
+        res = { ok: false, error: (e && e.message) ? e.message : 'Eroare rețea sau server indisponibil.' };
+      }
       setLoading(false);
       dot.style.opacity = '';
-      if (res.ok) {
+      if (res && res.ok) {
         savedCommit = res.commit || '';
         try { if (savedCommit) localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
         setGitConnected(true);
@@ -529,7 +585,7 @@
         showPullButton(false);
       } else {
         setGitConnected(false);
-        showMsg(res.error || 'Git connection failed.', false);
+        showMsg((res && res.error) || 'Git connection failed.', false);
       }
     });
 
@@ -555,10 +611,17 @@
           try { localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
         }
         setChangeStatus('up_to_date');
-        showMsg(res.message || 'Push successful.', true);
+        const msg = res.message || 'Push successful.';
+        showMsg(msg, true);
+        requestAnimationFrame(() => {
+          setChangeStatus('up_to_date');
+          showMsgPopup(msg, true);
+        });
         showPullButton(false);
       } else {
-        showMsg(res.error || 'Push failed.', false);
+        const errMsg = res.error || 'Push failed.';
+        showMsg(errMsg, false);
+        showMsgPopup(errMsg, false);
         if (res.needPull) showPullButton(true);
       }
     });
@@ -646,9 +709,21 @@
 
     function showMsg(text, ok = true) {
       const el = document.getElementById('msg');
-      el.textContent = text;
-      el.className = 'msg ' + (ok ? 'ok' : 'err');
+      if (el) { el.textContent = text; el.className = 'msg ' + (ok ? 'ok' : 'err'); }
     }
+
+    function showMsgPopup(text, ok = true) {
+      const overlay = document.getElementById('msgPopupOverlay');
+      const box = document.getElementById('msgPopupBox');
+      const textEl = document.getElementById('msgPopupText');
+      if (!overlay || !textEl) return;
+      textEl.textContent = text || '';
+      box.className = 'msg-popup-box ' + (ok ? 'ok' : 'err');
+      overlay.classList.remove('hidden');
+    }
+    document.getElementById('msgPopupOk').addEventListener('click', () => {
+      document.getElementById('msgPopupOverlay').classList.add('hidden');
+    });
 
     let playlistExpanded = false;
     let changeStatus = 'up_to_date';
@@ -707,6 +782,7 @@
     }
 
     let sectionData = {};
+    const sectionBlockExpanded = {};
     function getSectionList(sectionId) {
       const schema = SECTION_SCHEMAS[sectionId];
       const data = sectionData[sectionId] || SECTION_DEFAULTS[sectionId] || {};
@@ -800,6 +876,12 @@
         if (cooldownVal !== undefined) out.cooldownSeconds = cooldownVal;
         return out;
       }
+      if (schema?.customMeetingRooms) {
+        const cooldownVal = readSectionCooldown(sectionId);
+        const rooms = Array.isArray(sectionData[sectionId]?.rooms) ? sectionData[sectionId].rooms : [];
+        const image = (sectionData[sectionId]?.image && typeof sectionData[sectionId].image === 'string') ? sectionData[sectionId].image.trim() : '';
+        return { cooldownSeconds: cooldownVal !== undefined ? cooldownVal : 60, rooms, image };
+      }
       if (schema?.infoSectionEditor) {
         const out = { customerFeedback: [], quotesOfDay: [], didYouKnow: [], wordOfDay: [], reminderHealthy: [] };
         const card = document.querySelector(`.section-card[data-section="${sectionId}"]`);
@@ -813,8 +895,7 @@
         const qdTbody = card.querySelector('.section-items-tbody[data-list="quotesOfDay"]');
         if (qdTbody) qdTbody.querySelectorAll('tr[data-index]').forEach(row => {
           const quoteEl = row.querySelector('[data-col="quote"]');
-          const usedEl = row.querySelector('[data-col="used"]');
-          out.quotesOfDay.push({ quote: quoteEl ? quoteEl.value.trim() : '', used: usedEl ? usedEl.checked : false });
+          out.quotesOfDay.push({ quote: quoteEl ? quoteEl.value.trim() : '' });
         });
         const dykTbody = card.querySelector('.section-items-tbody[data-list="didYouKnow"]');
         if (dykTbody) dykTbody.querySelectorAll('tr[data-index]').forEach(row => {
@@ -880,8 +961,21 @@
               const wrap = document.querySelector(`.section-extra[data-section="${sectionId}"][data-key="${k}"]`);
               if (wrap && k === 'origin') { const i = wrap.querySelector('input'); if (i) data.origin = i.value || ''; }
               if (wrap && k === 'restaurant') {
-                const o = {}; ['name', 'tagline'].forEach(f => { const i = wrap.querySelector(`[data-field="${f}"]`); if (i) o[f] = i.value || ''; });
-                data.restaurant = o;
+                const locInp = wrap.querySelector('[data-field="restaurantLocation"]');
+                if (locInp) data.restaurantLocation = (locInp.value || '').trim();
+                const onlyDeliveryInp = wrap.querySelector('[data-field="only_delivery"]');
+                if (onlyDeliveryInp) data.only_delivery = onlyDeliveryInp.checked;
+                data.restaurant = (sectionData[sectionId] && sectionData[sectionId].restaurant) || data.restaurant || {};
+              }
+              if (wrap && k === 'menuPdfUrls') {
+                const rows = wrap.querySelectorAll('.menu-pdf-row');
+                const items = [];
+                rows.forEach(function(r) {
+                  const u = (r.querySelector('[data-field="url"]')?.value || '').trim();
+                  const range = (r.querySelector('[data-field="range"]')?.value || '').trim() || 'all';
+                  if (u) items.push({ url: u, range: range });
+                });
+                data.menuPdfItems = items.length ? items : (data.menuPdfItems || []);
               }
             });
           }
@@ -901,6 +995,7 @@
                 if (!el) return;
                 let v;
                 if (col.type === 'checkbox') v = el.checked;
+                else if (el.getAttribute('data-html-editor') === 'true') v = el.innerHTML || '';
                 else if (col.type === 'select') v = el.value;
                 else if (col.type === 'image' || col.type === 'video') {
                   const idx = parseInt(row.dataset.index, 10);
@@ -908,6 +1003,7 @@
                   v = (list && list[idx]) ? (list[idx][col.key] || '') : '';
                 } else v = el.value;
                 if (col.key === 'progress' || col.key === 'minutes') v = parseInt(v, 10) || 0;
+                else if (col.type === 'number') v = v === '' ? '' : (parseInt(v, 10) || 0);
                 else if (col.key === 'slots' && schema.slotsAsString) {
                   v = (v || '').split(',').map(s => s.trim()).filter(Boolean);
                 }
@@ -924,8 +1020,21 @@
         schema.extraKeys.forEach(k => {
           const wrap = document.querySelector(`.section-extra[data-section="${sectionId}"][data-key="${k}"]`);
           if (wrap && k === 'restaurant') {
-            const o = {}; ['name', 'tagline'].forEach(f => { const i = wrap.querySelector(`[data-field="${f}"]`); if (i) o[f] = i.value || ''; });
-            data.restaurant = o;
+            const locInp = wrap.querySelector('[data-field="restaurantLocation"]');
+            if (locInp) data.restaurantLocation = (locInp.value || '').trim();
+            const onlyDeliveryInp = wrap.querySelector('[data-field="only_delivery"]');
+            if (onlyDeliveryInp) data.only_delivery = onlyDeliveryInp.checked;
+            data.restaurant = (sectionData[sectionId] && sectionData[sectionId].restaurant) || data.restaurant || {};
+          }
+          if (wrap && k === 'menuPdfUrls') {
+            const rows = wrap.querySelectorAll('.menu-pdf-row');
+            const items = [];
+            rows.forEach(function(r) {
+              const u = (r.querySelector('[data-field="url"]')?.value || '').trim();
+              const range = (r.querySelector('[data-field="range"]')?.value || '').trim() || 'all';
+              if (u) items.push({ url: u, range: range });
+            });
+            data.menuPdfItems = items.length ? items : (data.menuPdfItems || []);
           }
         });
       }
@@ -938,7 +1047,7 @@
         const tr = document.createElement('tr');
         tr.dataset.index = i;
         const isStr = itemIsString;
-        const val = isStr ? (typeof item === 'string' ? item : '') : item;
+        const val = isStr ? (typeof item === 'string' ? item : '') : (typeof item === 'object' && item !== null ? item : { text: String(item), color: '', bold: false });
         columns.forEach(col => {
           const td = document.createElement('td');
           if (col.type === 'checkbox') {
@@ -955,6 +1064,20 @@
               if (typeof markUnsaved === 'function') markUnsaved();
             });
             td.appendChild(cb);
+          } else if (col.type === 'color' && !isStr) {
+            const input = document.createElement('input');
+            input.type = 'color';
+            input.dataset.col = col.key;
+            input.value = (val[col.key] && /^#[0-9A-Fa-f]{6}$/.test(String(val[col.key]))) ? String(val[col.key]) : '#000000';
+            input.addEventListener('input', () => {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              let a = sectionData[sectionId][listKey];
+              if (!Array.isArray(a)) a = [];
+              sectionData[sectionId][listKey] = a;
+              a[i] = a[i] || {}; a[i][col.key] = input.value;
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            td.appendChild(input);
           } else if (col.type === 'select' && col.options) {
             const sel = document.createElement('select');
             sel.dataset.col = col.key;
@@ -1028,6 +1151,65 @@
               if (typeof markUnsaved === 'function') markUnsaved();
             });
             td.appendChild(input);
+          } else if (col.type === 'number' && !isStr) {
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.dataset.col = col.key;
+            if (col.min != null) input.min = col.min;
+            if (col.max != null) input.max = col.max;
+            if (col.step != null) input.step = col.step;
+            const numVal = val[col.key];
+            const numParsed = (numVal !== undefined && numVal !== null && numVal !== '') ? (typeof numVal === 'number' ? numVal : (parseInt(String(numVal).replace(/\D/g, ''), 10) || '')) : '';
+            input.value = numParsed;
+            input.addEventListener('input', () => {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              let a = sectionData[sectionId][listKey];
+              if (!Array.isArray(a)) a = [];
+              sectionData[sectionId][listKey] = a;
+              a[i] = a[i] || {};
+              a[i][col.key] = input.value === '' ? '' : (parseInt(input.value, 10) || 0);
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            td.appendChild(input);
+          } else if (!isStr && col.htmlEditor && col.key === 'text') {
+            const toolbar = document.createElement('div');
+            toolbar.style.marginBottom = '4px';
+            const boldBtn = document.createElement('button');
+            boldBtn.type = 'button';
+            boldBtn.className = 'small';
+            boldBtn.textContent = 'Bold';
+            boldBtn.style.marginRight = '6px';
+            boldBtn.addEventListener('click', () => { document.execCommand('bold', false); });
+            const colorInput = document.createElement('input');
+            colorInput.type = 'color';
+            colorInput.title = 'Culoare text (inline)';
+            colorInput.style.width = '28px';
+            colorInput.style.height = '24px';
+            colorInput.style.padding = '0';
+            colorInput.style.border = 'none';
+            colorInput.addEventListener('input', () => { document.execCommand('styleWithCSS', false, true); document.execCommand('foreColor', false, colorInput.value); });
+            toolbar.appendChild(boldBtn);
+            toolbar.appendChild(colorInput);
+            const ed = document.createElement('div');
+            ed.contentEditable = 'true';
+            ed.dataset.htmlEditor = 'true';
+            ed.dataset.col = col.key;
+            ed.style.minHeight = '44px';
+            ed.style.padding = '8px';
+            ed.style.background = '#2d323c';
+            ed.style.borderRadius = '6px';
+            ed.style.fontSize = '0.9rem';
+            ed.innerHTML = (val[col.key] && typeof val[col.key] === 'string') ? val[col.key] : '';
+            ed.addEventListener('input', () => {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              let a = sectionData[sectionId][listKey];
+              if (!Array.isArray(a)) a = [];
+              sectionData[sectionId][listKey] = a;
+              a[i] = a[i] || {}; a[i][col.key] = ed.innerHTML;
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            td.appendChild(toolbar);
+            td.appendChild(ed);
           } else if (isStr && htmlEditor) {
             const toolbar = document.createElement('div');
             toolbar.style.marginBottom = '4px';
@@ -1116,19 +1298,22 @@
       appendCooldownRow(body, sectionId);
       const sub = (title, tableHeaders, rows, addLabel, listKey, defaultItem, rowRenderer, collapsible) => {
         const wrap = document.createElement('div');
-        wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible collapsed' : '');
+        const blockKey = sectionId + '_' + listKey;
+        const isExpanded = sectionBlockExpanded[blockKey];
+        wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible' + (isExpanded ? '' : ' collapsed') : '');
         wrap.style.marginBottom = '18px';
         const headerDiv = document.createElement('div');
         if (collapsible) {
           headerDiv.className = 'section-anniversary-collapsible-header';
           const toggleSpan = document.createElement('span');
           toggleSpan.className = 'toggle-icon';
-          toggleSpan.textContent = '\u25B6';
+          toggleSpan.textContent = isExpanded ? '\u25BC' : '\u25B6';
           toggleSpan.setAttribute('aria-hidden', 'true');
           headerDiv.appendChild(toggleSpan);
           headerDiv.appendChild(document.createTextNode(title));
           headerDiv.addEventListener('click', () => {
             wrap.classList.toggle('collapsed');
+            sectionBlockExpanded[blockKey] = !wrap.classList.contains('collapsed');
             toggleSpan.textContent = wrap.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
           });
         } else {
@@ -1168,7 +1353,7 @@
         wrap.appendChild(contentWrap);
         body.appendChild(wrap);
       };
-      sub('Oameni (nume, birthday, new colleague, work start date)', ['Nume', 'Birthday', 'New colleague', 'Work start date'], people, '+ Adaugă persoană', 'people', { name: '', birthday: '', newColleague: false, workStartDate: '' }, (tbody, p, i, sid, listKey, def) => {
+      sub('People (nume, birthday, new colleague, work start date)', ['Nume', 'Birthday', 'New colleague', 'Work start date'], people, '+ Adaugă persoană', 'people', { name: '', birthday: '', newColleague: false, workStartDate: '' }, (tbody, p, i, sid, listKey, def) => {
         const tr = document.createElement('tr');
         tr.dataset.index = i;
         const nameInp = document.createElement('input');
@@ -1210,18 +1395,21 @@
         tbody.appendChild(tr);
       }, true);
       const eomWrap = document.createElement('div');
-      eomWrap.className = 'section-anniversary-block section-anniversary-collapsible collapsed';
+      const eomBlockKey = sectionId + '_employeeOfMonth';
+      const eomExpanded = sectionBlockExpanded[eomBlockKey];
+      eomWrap.className = 'section-anniversary-block section-anniversary-collapsible' + (eomExpanded ? '' : ' collapsed');
       eomWrap.style.marginBottom = '18px';
       const eomHeader = document.createElement('div');
       eomHeader.className = 'section-anniversary-collapsible-header';
       const eomToggle = document.createElement('span');
       eomToggle.className = 'toggle-icon';
-      eomToggle.textContent = '\u25B6';
+      eomToggle.textContent = eomExpanded ? '\u25BC' : '\u25B6';
       eomToggle.setAttribute('aria-hidden', 'true');
       eomHeader.appendChild(eomToggle);
-      eomHeader.appendChild(document.createTextNode('Employee of the month (max 3 din lista de oameni)'));
+      eomHeader.appendChild(document.createTextNode('Employee of the month (max 3 din lista de People)'));
       eomHeader.addEventListener('click', () => {
         eomWrap.classList.toggle('collapsed');
+        sectionBlockExpanded[eomBlockKey] = !eomWrap.classList.contains('collapsed');
         eomToggle.textContent = eomWrap.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
       });
       eomWrap.appendChild(eomHeader);
@@ -1362,19 +1550,22 @@
       appendCooldownRow(body, sectionId);
       function addBlock(title, listKey, columns, rows, defaultItem, rowRenderer, collapsible) {
         const wrap = document.createElement('div');
-        wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible collapsed' : '');
+        const blockKey = sectionId + '_' + listKey;
+        const isExpanded = sectionBlockExpanded[blockKey];
+        wrap.className = 'section-anniversary-block' + (collapsible ? ' section-anniversary-collapsible' + (isExpanded ? '' : ' collapsed') : '');
         wrap.style.marginBottom = '18px';
         const headerDiv = document.createElement('div');
         if (collapsible) {
           headerDiv.className = 'section-anniversary-collapsible-header';
           const toggleSpan = document.createElement('span');
           toggleSpan.className = 'toggle-icon';
-          toggleSpan.textContent = '\u25B6';
+          toggleSpan.textContent = isExpanded ? '\u25BC' : '\u25B6';
           toggleSpan.setAttribute('aria-hidden', 'true');
           headerDiv.appendChild(toggleSpan);
           headerDiv.appendChild(document.createTextNode(title));
           headerDiv.addEventListener('click', () => {
             wrap.classList.toggle('collapsed');
+            sectionBlockExpanded[blockKey] = !wrap.classList.contains('collapsed');
             toggleSpan.textContent = wrap.classList.contains('collapsed') ? '\u25B6' : '\u25BC';
           });
         } else {
@@ -1438,10 +1629,10 @@
         tr.appendChild(actTd);
         tbody.appendChild(tr);
       }, true);
-      addBlock('Quotes of Day (quote + bifa Used; afișare 1/zi din lista cu Used)', 'quotesOfDay', ['Quote', 'Used'], quotesOfDay, { quote: '', used: false }, (tbody, item, i) => {
+      addBlock('Quote of the Day (1 random/zi din listă)', 'quotesOfDay', ['Quote'], quotesOfDay, { quote: '' }, (tbody, item, i) => {
         const tr = document.createElement('tr');
         tr.dataset.index = i;
-        const raw = (item && typeof item === 'object') ? item : { quote: typeof item === 'string' ? item : '', used: false };
+        const raw = (item && typeof item === 'object') ? item : { quote: typeof item === 'string' ? item : '' };
         const quoteTd = document.createElement('td');
         const quoteInp = document.createElement('input');
         quoteInp.dataset.col = 'quote';
@@ -1449,15 +1640,7 @@
         quoteInp.placeholder = 'Quote';
         quoteInp.addEventListener('input', () => { sectionData[sectionId].quotesOfDay[i] = sectionData[sectionId].quotesOfDay[i] || {}; sectionData[sectionId].quotesOfDay[i].quote = quoteInp.value; if (typeof markUnsaved === 'function') markUnsaved(); });
         quoteTd.appendChild(quoteInp);
-        const usedTd = document.createElement('td');
-        const usedCb = document.createElement('input');
-        usedCb.type = 'checkbox';
-        usedCb.dataset.col = 'used';
-        usedCb.checked = !!raw.used;
-        usedCb.addEventListener('change', () => { sectionData[sectionId].quotesOfDay[i] = sectionData[sectionId].quotesOfDay[i] || {}; sectionData[sectionId].quotesOfDay[i].used = usedCb.checked; if (typeof markUnsaved === 'function') markUnsaved(); });
-        usedTd.appendChild(usedCb);
         tr.appendChild(quoteTd);
-        tr.appendChild(usedTd);
         const actTd = document.createElement('td');
         actTd.className = 'col-actions';
         const delBtn = document.createElement('button');
@@ -1469,7 +1652,7 @@
         tr.appendChild(actTd);
         tbody.appendChild(tr);
       }, true);
-      addBlock('Did you know (facts; afișare random 1/zi)', 'didYouKnow', ['Fact'], didYouKnow, { fact: '' }, (tbody, item, i) => {
+      addBlock('Did you know ! (facts; afișare random 1/zi)', 'didYouKnow', ['Fact'], didYouKnow, { fact: '' }, (tbody, item, i) => {
         const tr = document.createElement('tr');
         tr.dataset.index = i;
         const td = document.createElement('td');
@@ -1491,7 +1674,7 @@
         tr.appendChild(actTd);
         tbody.appendChild(tr);
       }, true);
-      addBlock('Word of day (word, meaning; afișare random 1/zi)', 'wordOfDay', ['Word', 'Meaning'], wordOfDay, { word: '', meaning: '' }, (tbody, item, i) => {
+      addBlock('Word of the Day (word, meaning; afișare random 1/zi)', 'wordOfDay', ['Word', 'Meaning'], wordOfDay, { word: '', meaning: '' }, (tbody, item, i) => {
         const tr = document.createElement('tr');
         tr.dataset.index = i;
         ['word', 'meaning'].forEach(key => {
@@ -1565,6 +1748,94 @@
       });
       body.appendChild(saveBtn);
     }
+    function renderMeetingRoomsEditor(sectionId, body) {
+      const data = sectionData[sectionId] || SECTION_DEFAULTS[sectionId] || {};
+      const rooms = Array.isArray(data.rooms) ? data.rooms : [];
+      body.innerHTML = '';
+      if (COOLDOWN_SECTION_IDS.includes(sectionId)) appendCooldownRow(body, sectionId);
+      const note = document.createElement('p');
+      note.className = 'section-empty-hint';
+      note.style.cssText = 'color: var(--muted); font-size: 0.9rem; margin-bottom: 12px;';
+      note.textContent = 'Secțiunea Meeting rooms este dezactivată. Înlocuiți cu o imagine afișată în aplicație.';
+      body.appendChild(note);
+      const tableWrap = document.createElement('div');
+      tableWrap.style.opacity = '0.6';
+      tableWrap.style.pointerEvents = 'none';
+      const table = document.createElement('table');
+      table.className = 'section-item-table';
+      table.innerHTML = '<thead><tr><th>Nume sală (disabled)</th><th class="col-actions">Acțiuni</th></tr></thead><tbody class="section-items-tbody" data-section="' + sectionId + '" data-list="rooms"></tbody>';
+      const tbody = table.querySelector('tbody');
+      rooms.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        tr.dataset.index = i;
+        const td = document.createElement('td');
+        const inp = document.createElement('input');
+        inp.value = (r && r.name) || '';
+        inp.disabled = true;
+        inp.placeholder = 'Nume sală';
+        td.appendChild(inp);
+        tr.appendChild(td);
+        const actTd = document.createElement('td');
+        actTd.className = 'col-actions';
+        actTd.innerHTML = '<button type="button" class="small danger" disabled>Șterge</button>';
+        tr.appendChild(actTd);
+        tbody.appendChild(tr);
+      });
+      tableWrap.appendChild(table);
+      body.appendChild(tableWrap);
+      const imgLabel = document.createElement('p');
+      imgLabel.style.cssText = 'font-weight: 600; margin: 16px 0 8px 0; font-size: 0.9rem;';
+      imgLabel.textContent = 'Imagine afișată în aplicație';
+      body.appendChild(imgLabel);
+      const imgWrap = document.createElement('div');
+      imgWrap.style.display = 'flex';
+      imgWrap.style.alignItems = 'center';
+      imgWrap.style.gap = '8px';
+      imgWrap.style.marginBottom = '12px';
+      const pathSpan = document.createElement('span');
+      pathSpan.className = 'section-file-path';
+      pathSpan.style.fontSize = '0.8rem';
+      pathSpan.style.color = 'var(--muted)';
+      pathSpan.textContent = (data.image && typeof data.image === 'string') ? data.image.replace(/^.*[/\\]/, '') : '—';
+      const fileInput = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.accept = 'image/*';
+      fileInput.style.width = 'auto';
+      fileInput.addEventListener('change', async () => {
+        if (!selectedTeam || !fileInput.files?.length) return;
+        const fd = new FormData();
+        fd.append('file', fileInput.files[0]);
+        fd.append('kind', 'image');
+        try {
+          const res = await fetch('/api/teams/' + encodeURIComponent(selectedTeam) + '/upload', { method: 'POST', body: fd });
+          const result = await res.json();
+          if (result.path) {
+            sectionData[sectionId] = sectionData[sectionId] || {};
+            sectionData[sectionId].image = result.path;
+            pathSpan.textContent = (result.path + '').replace(/^.*[/\\]/, '');
+            if (typeof markUnsaved === 'function') markUnsaved();
+          }
+        } catch (e) {}
+        fileInput.value = '';
+      });
+      imgWrap.appendChild(fileInput);
+      imgWrap.appendChild(pathSpan);
+      body.appendChild(imgWrap);
+      const saveBtn = document.createElement('button');
+      saveBtn.type = 'button';
+      saveBtn.className = 'small';
+      saveBtn.style.marginTop = '8px';
+      saveBtn.textContent = 'Salvează secțiune';
+      saveBtn.dataset.section = sectionId;
+      saveBtn.addEventListener('click', async () => {
+        if (!selectedTeam) { showMsg('Selectați o echipă.', false); return; }
+        const json = buildSectionJsonFromUI(sectionId);
+        const res = await api('/api/teams/' + encodeURIComponent(selectedTeam) + '/section/' + encodeURIComponent(sectionId), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(json) });
+        if (res.error) showMsg(res.error, false);
+        else { sectionData[sectionId] = json; showMsg('Secțiune Meeting rooms salvată.', true); setChangeStatus('saved_unpushed'); }
+      });
+      body.appendChild(saveBtn);
+    }
     function renderSectionCardBody(sectionId) {
       const body = document.querySelector(`.section-card[data-section="${sectionId}"] .section-body`);
       if (!body) return;
@@ -1595,6 +1866,10 @@
         renderAnniversaryEditor(sectionId, body);
         return;
       }
+      if (schema?.customMeetingRooms) {
+        renderMeetingRoomsEditor(sectionId, body);
+        return;
+      }
       const lists = getSectionList(sectionId);
       body.innerHTML = '';
       if (COOLDOWN_SECTION_IDS.includes(sectionId)) appendCooldownRow(body, sectionId);
@@ -1622,14 +1897,138 @@
         wrap.className = 'section-extra section-object-fields';
         wrap.dataset.section = sectionId;
         wrap.dataset.key = 'restaurant';
+        const loc = data.restaurantLocation || data.location || '';
         const r = data.restaurant || {};
-        wrap.innerHTML = '<label>Restaurant name</label><input type="text" data-field="name" value="' + escapeHtml(r.name || '') + '" /><label>Info restaurant</label><input type="text" data-field="tagline" value="' + escapeHtml(r.tagline || '') + '" placeholder="Tagline / descriere" />';
-        wrap.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => { if (typeof markUnsaved === 'function') markUnsaved(); }));
+        const onlyDelivery = !!data.only_delivery;
+        wrap.innerHTML = '<label>Location (oraș pentru Restaurant of the Day)</label><input type="text" data-field="restaurantLocation" value="' + escapeHtml(loc) + '" placeholder="ex: Sibiu" />' +
+          '<label class="checkbox-label" style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;"><input type="checkbox" data-field="only_delivery" class="only-delivery-cb" title="Doar restaurante cu opțiune delivery" ' + (onlyDelivery ? 'checked' : '') + ' /> Doar restaurante cu delivery</label>' +
+          '<p class="form-status hint" style="margin-top:8px;">Restaurantul zilei este ales automat o dată pe 24h (Google Places). Lista ultimelor 20 afișări se menține.</p>' +
+          (r.name ? '<p class="form-status ok" style="margin-top:6px;">Acum afișat: <strong>' + escapeHtml(r.name) + '</strong>' + (r.tagline ? ' — ' + escapeHtml(r.tagline) : '') + '</p>' : '') +
+          '<p class="form-status restaurant-api-status" style="margin-top:6px;padding:8px 10px;border-radius:6px;border:1px solid transparent;"><span class="restaurant-api-bullet" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:#9ca3af;"></span><span class="restaurant-api-text">Restaurant API: —</span><span class="restaurant-api-details" style="display:block;margin-top:4px;font-size:0.9em;"></span></p>';
+        wrap.querySelectorAll('input').forEach(inp => {
+          inp.addEventListener('input', () => { if (typeof markUnsaved === 'function') markUnsaved(); });
+          if (inp.getAttribute('data-field') === 'only_delivery') inp.setCustomValidity('');
+        });
+        body.appendChild(wrap);
+        if (sectionId === 'canteen_menu') {
+          const statusEl = wrap.querySelector('.restaurant-api-status');
+          const bulletEl = wrap.querySelector('.restaurant-api-bullet');
+          const textEl = wrap.querySelector('.restaurant-api-text');
+          const detailsEl = wrap.querySelector('.restaurant-api-details');
+          if (statusEl && bulletEl && textEl && detailsEl) {
+            function formatLastRun(iso) {
+              if (!iso) return '';
+              try {
+                const d = new Date(iso);
+                return d.toLocaleDateString('ro-RO', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + d.toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              } catch (e) { return iso; }
+            }
+            var apiBase = (typeof window.DASHBOARD_API_BASE !== 'undefined' ? window.DASHBOARD_API_BASE : '');
+            fetch(apiBase + '/api/restaurant-status').then(res => {
+              if (!res.ok) throw new Error('Status ' + res.status);
+              return res.json();
+            }).then(s => {
+              statusEl.className = 'form-status restaurant-api-status ' + (s.ok ? 'ok' : 'err');
+              statusEl.style.backgroundColor = s.ok ? '#dcfce7' : '#fef2f2';
+              statusEl.style.borderColor = s.ok ? '#86efac' : '#fecaca';
+              bulletEl.style.background = s.ok ? '#16a34a' : '#dc2626';
+              textEl.textContent = 'Restaurant API: ' + (s.ok ? 'OK' : 'NOK');
+              detailsEl.textContent = (s.message ? s.message + (s.lastRun ? ' · ' : '') : '') + (s.lastRun ? 'Ultima actualizare: ' + formatLastRun(s.lastRun) : '');
+              detailsEl.style.color = s.ok ? '#166534' : '#dc2626';
+            }).catch(function(err) {
+              statusEl.className = 'form-status restaurant-api-status err';
+              statusEl.style.backgroundColor = '#fef2f2';
+              statusEl.style.borderColor = '#fecaca';
+              bulletEl.style.background = '#dc2626';
+              textEl.textContent = 'Restaurant API: NOK';
+              detailsEl.textContent = 'Nu s-a putut citi statusul. Deschide dashboard-ul la adresa serverului (ex. http://localhost:5000).';
+              detailsEl.style.color = '#dc2626';
+            });
+          }
+        }
+      }
+      if (schema?.extraKeys && schema.extraKeys.includes('menuPdfUrls')) {
+        const wrap = document.createElement('div');
+        wrap.className = 'section-extra section-object-fields';
+        wrap.dataset.section = sectionId;
+        wrap.dataset.key = 'menuPdfUrls';
+        let items = (data.menuPdfItems && Array.isArray(data.menuPdfItems)) ? data.menuPdfItems : [];
+        if (items.length === 0 && (data.menuPdfUrls && Array.isArray(data.menuPdfUrls))) {
+          items = data.menuPdfUrls.map(function(u) { return { url: typeof u === 'string' ? u : '', range: 'all' }; });
+        }
+        if (items.length === 0) items = [{ url: '', range: 'all' }];
+        wrap.innerHTML = '<label>PDF-uri meniu (URL + Range pagini per PDF)</label>' +
+          '<p class="form-status hint" style="margin-top:2px;margin-bottom:8px;">Range: all (toate) sau 1-3 (primele 3) sau 1,3,5. La orele din sloturi se descarcă, se convertesc în imagini și se afișează popup.</p>' +
+          '<div class="menu-pdf-items" data-section="' + sectionId + '" style="display:block;"></div>';
+        const container = wrap.querySelector('.menu-pdf-items');
+        function renderMenuPdfRows() {
+          const arr = sectionData[sectionId] && sectionData[sectionId].menuPdfItems ? sectionData[sectionId].menuPdfItems : items;
+          container.innerHTML = '';
+          (arr || []).forEach(function(it, idx) {
+            const row = document.createElement('div');
+            row.className = 'menu-pdf-row';
+            row.style.marginBottom = '8px';
+            row.style.display = 'flex';
+            row.style.gap = '8px';
+            row.style.alignItems = 'flex-start';
+            row.dataset.index = idx;
+            const urlVal = (it && it.url) ? String(it.url) : '';
+            const rangeVal = (it && it.range) ? String(it.range) : 'all';
+            row.innerHTML = '<input type="url" data-field="url" placeholder="URL PDF" style="flex:1;min-width:320px;max-width:100%;" value="' + escapeHtml(urlVal) + '" />' +
+              '<input type="text" data-field="range" placeholder="all sau 1-3" style="width:100px;flex-shrink:0;" value="' + escapeHtml(rangeVal) + '" title="all / 1-3 / 1,3,5" />' +
+              '<button type="button" class="small menu-pdf-del" title="Șterge rând">×</button>';
+            const urlInp = row.querySelector('[data-field="url"]');
+            const rangeInp = row.querySelector('[data-field="range"]');
+            urlInp.addEventListener('input', function() {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              sectionData[sectionId].menuPdfItems = sectionData[sectionId].menuPdfItems || [];
+              sectionData[sectionId].menuPdfItems[idx] = sectionData[sectionId].menuPdfItems[idx] || {};
+              sectionData[sectionId].menuPdfItems[idx].url = urlInp.value.trim();
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            rangeInp.addEventListener('input', function() {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              sectionData[sectionId].menuPdfItems = sectionData[sectionId].menuPdfItems || [];
+              sectionData[sectionId].menuPdfItems[idx] = sectionData[sectionId].menuPdfItems[idx] || {};
+              sectionData[sectionId].menuPdfItems[idx].range = rangeInp.value.trim() || 'all';
+              if (typeof markUnsaved === 'function') markUnsaved();
+            });
+            row.querySelector('.menu-pdf-del').addEventListener('click', function() {
+              sectionData[sectionId] = sectionData[sectionId] || {};
+              sectionData[sectionId].menuPdfItems = sectionData[sectionId].menuPdfItems || [];
+              sectionData[sectionId].menuPdfItems.splice(idx, 1);
+              if (sectionData[sectionId].menuPdfItems.length === 0) sectionData[sectionId].menuPdfItems = [{ url: '', range: 'all' }];
+              if (typeof markUnsaved === 'function') markUnsaved();
+              renderMenuPdfRows();
+            });
+            container.appendChild(row);
+          });
+          var actionsDiv = document.createElement('div');
+          actionsDiv.className = 'menu-pdf-actions';
+          actionsDiv.style.cssText = 'display:block;width:100%;margin-top:16px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);';
+          var addBtn = document.createElement('button');
+          addBtn.type = 'button';
+          addBtn.className = 'small menu-pdf-add';
+          addBtn.style.cssText = 'margin-left:auto;display:block;';
+          addBtn.textContent = '+ Adaugă PDF';
+          addBtn.addEventListener('click', function() {
+            sectionData[sectionId] = sectionData[sectionId] || {};
+            sectionData[sectionId].menuPdfItems = sectionData[sectionId].menuPdfItems || [];
+            sectionData[sectionId].menuPdfItems.push({ url: '', range: 'all' });
+            if (typeof markUnsaved === 'function') markUnsaved();
+            renderMenuPdfRows();
+          });
+          actionsDiv.appendChild(addBtn);
+          container.appendChild(actionsDiv);
+        }
+        sectionData[sectionId] = sectionData[sectionId] || {};
+        sectionData[sectionId].menuPdfItems = items;
+        renderMenuPdfRows();
         body.appendChild(wrap);
       }
       lists.forEach(({ listKey, itemIsString, columns, defaultItem, slotsAsString, arr }) => {
         const sub = document.createElement('div');
-        if (schema?.lists) sub.innerHTML = '<div class="section-subtitle">' + (listKey === 'messages' ? 'Mesaje' : 'Oameni') + '</div>';
+        if (schema?.lists) sub.innerHTML = '<div class="section-subtitle">' + (listKey === 'messages' ? 'Mesaje' : listKey === 'people' ? 'People' : 'Oameni') + '</div>';
         const table = document.createElement('table');
         table.className = 'section-item-table';
         const thead = document.createElement('thead');
@@ -1826,7 +2225,15 @@
       }
       setButtons(true);
       const data = await api('/api/teams/' + encodeURIComponent(team) + '/playlist');
-      slides = Array.isArray(data.slides) ? data.slides.map(s => ({ ...s, enabled: s.enabled !== false })) : [];
+      slides = Array.isArray(data.slides) ? data.slides.map(s => {
+        const slide = { ...s, enabled: s.enabled !== false };
+        if ((slide.type || '').toLowerCase() === 'social_media') {
+          slide.type = 'web_url';
+          slide.src = slide.src || '';
+          delete slide.posts;
+        }
+        return slide;
+      }) : [];
       renderSlides();
       setChangeStatus('up_to_date');
       loadSectionContents();
@@ -1897,13 +2304,34 @@
       const fill = slide.fillWidth === true;
       return '<select class="fill-cell" data-i="'+i+'"><option value="yes"'+(fill?' selected':'')+'>Yes</option><option value="no"'+(fill?'':' selected')+'>No</option></select>';
     }
+    function webLiveFitCell(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      if (t !== 'web_live') return '<span></span>';
+      const val = Math.max(50, Math.min(400, parseInt(slide.webLiveFit, 10) || 250));
+      const opts = [50, 75, 100, 150, 200, 250, 300, 400].map(n => '<option value="'+n+'"'+(val===n?' selected':'')+'>'+n+'%</option>').join('');
+      return '<select class="web-live-fit" data-i="'+i+'">'+opts+'</select>';
+    }
+    function powerBiFitCell(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      if (t !== 'powerbi') return '<span></span>';
+      const val = Math.max(50, Math.min(400, parseInt(slide.powerBiFit, 10) || 100));
+      const opts = [50, 75, 100, 150, 200, 250, 300, 400].map(n => '<option value="'+n+'"'+(val===n?' selected':'')+'>'+n+'%</option>').join('');
+      return '<select class="powerbi-fit" data-i="'+i+'">'+opts+'</select>';
+    }
+    function zoomFitCell(slide, i) {
+      const t = (slide.type || '').toLowerCase();
+      if (t === 'web_live') return webLiveFitCell(slide, i);
+      if (t === 'powerbi') return powerBiFitCell(slide, i);
+      return '<span></span>';
+    }
 
     function renderSlides() {
       const div = document.getElementById('slideList');
+      if (!div) return;
       div.innerHTML = slides.map((s, i) => {
         const typeLocked = isTypeLocked(s);
         const srcLocked = isSrcLocked(s);
-        const typeVal = (s.type || 'web_url');
+        const typeVal = TYPES.includes(s.type) ? s.type : 'web_url';
         const isDisabled = s.enabled === false;
         return `
         <div class="slide-row ${isDisabled ? 'disabled-row' : ''}" data-i="${i}">
@@ -1912,6 +2340,7 @@
           <input type="number" class="duration" value="${s.duration ?? 10}" min="1" data-i="${i}" title="${(DOC_TYPES.includes((s.type||'').toLowerCase()) || ((s.type||'').toLowerCase()==='web_url' && s.converted)) ? 'Secunde per pagină' : 'Secunde'}" />
           ${soundCell(s, i)}
           ${fillWidthCell(s, i)}
+          ${zoomFitCell(s, i)}
           <input type="text" class="title" value="${escapeHtml(s.title||'')}" placeholder="Titlu" data-i="${i}" />
           <input type="text" class="subtitle" value="${escapeHtml(s.subtitle||'')}" placeholder="Subtitlu" data-i="${i}" />
           ${rangeCell(s, i)}
@@ -1924,7 +2353,11 @@
 
       div.querySelectorAll('.type').forEach(el => {
         const i = parseInt(el.dataset.i, 10);
-        el.addEventListener('change', () => { slides[i].type = el.value; markUnsaved(); renderSlides(); });
+        el.addEventListener('change', () => {
+          slides[i].type = el.value;
+          markUnsaved();
+          renderSlides();
+        });
       });
       div.querySelectorAll('.src, .duration, .title, .subtitle, .range-input').forEach(el => {
         const i = parseInt(el.dataset.i, 10);
@@ -1951,6 +2384,20 @@
         const i = parseInt(el.dataset.i, 10);
         el.addEventListener('change', () => {
           slides[i].fillWidth = el.value === 'yes';
+          markUnsaved();
+        });
+      });
+      div.querySelectorAll('.web-live-fit').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        el.addEventListener('change', () => {
+          slides[i].webLiveFit = parseInt(el.value, 10) || 250;
+          markUnsaved();
+        });
+      });
+      div.querySelectorAll('.powerbi-fit').forEach(el => {
+        const i = parseInt(el.dataset.i, 10);
+        el.addEventListener('change', () => {
+          slides[i].powerBiFit = parseInt(el.value, 10) || 100;
           markUnsaved();
         });
       });
@@ -2267,6 +2714,20 @@
       modalSrc = url;
       setModalStatus('URL salvat. Pentru Convert: apăsați Convert. Altfel validați și finalizați pentru iframe.', true);
     });
+    document.getElementById('modalWebLiveValidate').addEventListener('click', () => {
+      const url = document.getElementById('modalWebLiveUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL.', false); return; }
+      if (!url.startsWith('http')) { setModalStatus('URL trebuie să înceapă cu http.', false); return; }
+      modalSrc = url;
+      setModalStatus('URL salvat. Pagina se va reîmprospăta la fiecare afișare în slideshow.', true);
+    });
+    document.getElementById('modalPowerBiValidate').addEventListener('click', () => {
+      const url = document.getElementById('modalPowerBiUrl').value.trim();
+      if (!url) { setModalStatus('Introduceți URL Power BI.', false); return; }
+      if (!url.startsWith('http')) { setModalStatus('URL trebuie să înceapă cu http.', false); return; }
+      modalSrc = url;
+      setModalStatus('URL Power BI salvat. Report-ul se reîmprospătează la fiecare afișare.', true);
+    });
     document.getElementById('modalWebConvert').addEventListener('click', async () => {
       const url = document.getElementById('modalWebUrl').value.trim();
       if (!url || !url.startsWith('http')) { setModalStatus('Introduceți un URL valid și apăsați Validează URL.', false); return; }
@@ -2416,6 +2877,16 @@
         ok = (modalWebConverted && !!modalWebPath && dur >= 1) || (!modalWebConverted && !!modalSrc && dur >= 1);
         if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
         else setModalStatus('Introduceți URL și validați; sau apăsați Convert, apoi setați durata.', false);
+      } else if (type === 'web_live') {
+        const dur = parseInt(document.getElementById('modalDurationWebLive').value, 10) || 60;
+        ok = !!modalSrc && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Introduceți URL, apăsați Validează URL și setați durata.', false);
+      } else if (type === 'powerbi') {
+        const dur = parseInt(document.getElementById('modalDurationPowerBi').value, 10) || 60;
+        ok = !!modalSrc && dur >= 1;
+        if (ok) setModalStatus('Form valid. Apăsați Finalizare.', true);
+        else setModalStatus('Introduceți URL Power BI, apăsați Validează URL și setați durata.', false);
       } else if (type === 'vimeo' || type === 'hls') {
         const durId = type === 'vimeo' ? 'modalDurationVi' : 'modalDurationH';
         const dur = parseInt(document.getElementById(durId).value, 10) || 60;
@@ -2464,6 +2935,21 @@
         } else {
           slide.src = modalSrc;
         }
+      } else if (type === 'web_live') {
+        slide.src = modalSrc || document.getElementById('modalWebLiveUrl').value.trim();
+        slide.duration = parseInt(document.getElementById('modalDurationWebLive').value, 10) || 60;
+        slide.webLiveFit = parseInt(document.getElementById('modalWebLiveFit').value, 10) || 250;
+        slide.title = document.getElementById('modalTitleWebLive').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitleWebLive').value.trim();
+        slide.enabled = document.getElementById('modalEnabledWebLive').value === '1';
+      } else if (type === 'powerbi') {
+        slide.src = modalSrc || document.getElementById('modalPowerBiUrl').value.trim();
+        slide.duration = parseInt(document.getElementById('modalDurationPowerBi').value, 10) || 60;
+        slide.powerBiFit = parseInt(document.getElementById('modalPowerBiFit').value, 10) || 100;
+        slide.powerBiPage = document.getElementById('modalPowerBiPage').value.trim() || undefined;
+        slide.title = document.getElementById('modalTitlePowerBi').value.trim();
+        slide.subtitle = document.getElementById('modalSubtitlePowerBi').value.trim();
+        slide.enabled = document.getElementById('modalEnabledPowerBi').value === '1';
       } else if (type === 'vimeo') {
         slide.src = modalSrc;
         slide.duration = parseInt(document.getElementById('modalDurationVi').value, 10) || 60;
@@ -2505,17 +2991,25 @@
     (async function init() {
       renderSectionCards();
       if (localStorage.getItem(GIT_CACHE_KEY) === 'true') {
-        const res = await api('/api/git/commit');
-        if (res.ok && res.commit) {
-          savedCommit = res.commit;
-          try { localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
+        try {
+          const res = await api('/api/git/commit');
+          if (res && res.ok && res.commit) {
+            savedCommit = res.commit;
+            try { localStorage.setItem(GIT_COMMIT_KEY, savedCommit); } catch (e) {}
+            setGitConnected(true);
+          } else {
+            setGitConnected(false);
+          }
+        } catch (e) {
+          setGitConnected(false);
         }
-        setGitConnected(true);
       }
-      const teams = await loadTeams();
-      if (teams && teams.length > 0 && !selectedTeam) {
-        loadPlaylist(teams[0]);
-      }
+      try {
+        const teams = await loadTeams();
+        if (teams && teams.length > 0 && !selectedTeam) {
+          loadPlaylist(teams[0]);
+        }
+      } catch (e) {}
     })();
   </script>
 </body>
