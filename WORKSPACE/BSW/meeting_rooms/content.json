@@ -1,4 +1,5 @@
 {
+  "cooldownSeconds": 10,
   "rooms": [
     {
       "name": "Room A"
@@ -10,5 +11,5 @@
       "name": "Room C"
     }
   ],
-  "cooldownSeconds": 10
+  "image": "photos/aumovio-concept-car-front-view_stage-desktop_c410ea47.png"
 }
