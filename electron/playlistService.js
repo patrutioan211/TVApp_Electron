@@ -78,26 +78,16 @@ async function doGitPush(relativePaths) {
 }
 
 /**
- * Git pull la 15 min. Apelează onUpdate() doar când pull-ul a adus un commit nou,
- * astfel view-ul reîncarcă playlist + tot conținutul (secțiuni) din workspace.
+ * Git pull la 15 min. Întotdeauna face pull la repo (inclusiv WORKSPACE), apoi apelează onUpdate()
+ * astfel view-ul reîncarcă playlist + tot conținutul din WORKSPACE (date proaspăt după pull).
+ * Flux: dashboard face push → .exe face pull → citește din WORKSPACE → actualizează view-ul.
  */
 function initGitSync(onUpdate) {
-  // First sync on startup
-  doGitSync()
-    .then((changed) => {
-      if (changed && typeof onUpdate === 'function') {
-        onUpdate();
-      }
-    })
-    .catch(() => {});
-
-  // Then periodic sync
-  setInterval(async () => {
-    const changed = await doGitSync();
-    if (changed && typeof onUpdate === 'function') {
-      onUpdate();
-    }
-  }, SYNC_INTERVAL_MS);
+  const pullThenRefresh = async () => {
+    await doGitSync();
+    if (typeof onUpdate === 'function') onUpdate();
+  };
+  setInterval(pullThenRefresh, SYNC_INTERVAL_MS);
 }
 
 module.exports = {

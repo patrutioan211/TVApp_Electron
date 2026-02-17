@@ -88,18 +88,20 @@ This installs:
 
 ---
 
-### 4. How Git Sync Works
+### 4. How Git Sync Works (pull → WORKSPACE → view)
 
-- The **Electron main process** uses `simple-git` with base directory `content/`.
-- On app start:
-  - It runs an initial `git fetch` + `git pull`.
-  - After each successful pull, it notifies the renderer via the `playlist-updated` IPC event.
-- Every **5 minutes**, it repeats the sync process (`fetch` + `pull`) automatically.
-- After a pull, the renderer:
-  - Calls `getPlaylist` again via IPC.
-  - Updates the slideshow with the latest `playlist.json` and assets.
+- Repo-ul Git este **rădăcina proiectului** (același folder ca aplicația .exe); **WORKSPACE** este în acest repo (ex. `WORKSPACE/<team>/playlist.json`, secțiuni, etc.).
+- **Dashboard-ul** face push la Git cu modificările (playlist, secțiuni). Aplicația **.exe pe TV**:
+  1. Face **pull** la repo (înainte de fiecare refresh al view-ului).
+  2. După pull, citește **din WORKSPACE** (playlist + toate secțiunile).
+  3. Trimite **playlist-updated** către view; view-ul reîncarcă datele din main process (care le-a citit din WORKSPACE).
+- La pornire: se face un **pull** la repo, apoi se deschide fereastra (prima afișare e deja cu datele proaspăt după pull).
+- La fiecare **15 minute**: **pull** → apoi **playlist-updated** → view reîncarcă playlist + secțiuni din WORKSPACE.
+- La **1 oră**: din nou pull apoi refresh view (fallback).
 
-> Note: The repo must already be a valid Git clone (with a remote configured). This app **does not** perform the initial clone for you.
+Rezumat: **dashboard push → TV pull → TV citește din WORKSPACE → view se actualizează.** Conținutul afișat vine întotdeauna din WORKSPACE (repo), după ce s-a făcut pull.
+
+> Note: Repo-ul trebuie să fie deja un clone Git cu remote configurat. Aplicația nu face clone-ul inițial.
 
 ---
 

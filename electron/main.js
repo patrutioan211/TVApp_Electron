@@ -127,7 +127,7 @@ function createWindow(loadUrl) {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (!isDev) {
     protocol.handle('app', (request) => {
       let p = request.url.slice('app://'.length).replace(/#.*$/, '').replace(/^\/+/, '').replace(/^\.\/?/, '') || 'index.html';
@@ -194,14 +194,18 @@ app.whenReady().then(() => {
     });
   });
 
+  // Pull la repo (inclusiv WORKSPACE) înainte de prima afișare – view-ul citește apoi din WORKSPACE
+  await doGitSync();
+
   createWindow(getBaseUrl());
 
-  // Git pull la 15 min → trimite 'playlist-updated' → view reîncarcă playlist + toate secțiunile
+  // La 15 min: pull apoi 'playlist-updated' → view reîncarcă playlist + secțiuni din WORKSPACE (dashboard push → TV pull → view refresh)
   initGitSync(() => {
     if (mainWindow) mainWindow.webContents.send('playlist-updated');
   });
-  // Fallback: refresh conținut din disk la 1h chiar dacă git pull lipsește sau eșuează
-  setInterval(() => {
+  // La 1h: pull apoi refresh view (fallback)
+  setInterval(async () => {
+    await doGitSync();
     if (mainWindow) mainWindow.webContents.send('playlist-updated');
   }, 60 * 60 * 1000);
 
