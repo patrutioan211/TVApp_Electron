@@ -44,7 +44,7 @@
     "files": ["dist/**/*", "electron/**/*", "content/**/*", "WORKSPACE/**/*", "version.json", "package.json"],
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "publish": { "provider": "generic" }
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": true,
