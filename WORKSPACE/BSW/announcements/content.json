@@ -2,7 +2,7 @@
   "cooldownSeconds": 54,
   "items": [
     {
-      "text": "<span style=\"color: rgb(255, 0, 0);\">Quarterly town</span> hall today at 16:00, Sky Auditorium – all teams invited.",
+      "text": "<span style=\"color: rgb(24, 122, 226);\">Quarterly town</span> hall today at 16:00, Sky Auditorium – all teams invited.",
       "color": "#000000",
       "bold": false
     },
