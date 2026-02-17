@@ -13,6 +13,22 @@ const ROOT = path.join(__dirname, '..');
 const RELEASE_DIR = path.join(ROOT, 'release');
 const VERSION_FILE = path.join(ROOT, 'version.json');
 
+/** Citește owner/repo din package.json build.publish (același loc unde schimbi dacă muți repo-ul). */
+function getGitHubRepo() {
+  try {
+    const pkg = require(path.join(ROOT, 'package.json'));
+    const pub = pkg.build && pkg.build.publish;
+    if (pub && pub.owner && pub.repo) return { owner: pub.owner, repo: pub.repo };
+    const repo = pkg.repository && (pkg.repository.url || pkg.repository);
+    const url = typeof repo === 'string' ? repo : (repo && repo.url);
+    if (url && /github\.com[/:]([^/]+)\/([^/.]+)/.test(url)) {
+      const [, owner, repoName] = url.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
+      return { owner, repo: repoName.replace(/\.git$/, '') };
+    }
+  } catch (e) {}
+  return { owner: 'patrutioan211', repo: 'TVApp_Electron' };
+}
+
 function getVersion() {
   try {
     const data = JSON.parse(fs.readFileSync(VERSION_FILE, 'utf-8'));
@@ -48,6 +64,9 @@ function main() {
 
   const tag = `v${version}`;
   const exeName = path.basename(exePath);
+  const { owner, repo } = getGitHubRepo();
+  const releasesUrl = `https://github.com/${owner}/${repo}/releases`;
+  const releasesNewUrl = `${releasesUrl}/new`;
 
   // Încearcă gh (GitHub CLI)
   try {
@@ -58,7 +77,7 @@ function main() {
     console.log('Opțiunea 1 – Instalează gh: https://cli.github.com/ apoi rulează din nou: npm run release:github');
     console.log('');
     console.log('Opțiunea 2 – Release manual pe GitHub:');
-    console.log('  1. Deschide: https://github.com/patrutioan211/TVApp_Electron/releases/new');
+    console.log('  1. Deschide: ' + releasesNewUrl);
     console.log('  2. Tag: ' + tag + ' (sau alege "Choose existing tag" dacă tag-ul există)');
     console.log('  3. Title: Release ' + tag);
     console.log('  4. Upload fișiere:');
@@ -83,7 +102,7 @@ function main() {
       `gh release create ${tag} "${exePath}" "${ymlPath}" --title "Release ${tag}"`,
       { cwd: ROOT, stdio: 'inherit' }
     );
-    console.log('Release publicat: https://github.com/patrutioan211/TVApp_Electron/releases/tag/' + tag);
+    console.log('Release publicat: ' + releasesUrl + '/tag/' + tag);
   } catch (e) {
     console.error('Eroare la gh release create:', e.message);
     process.exit(1);

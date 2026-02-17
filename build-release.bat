@@ -41,7 +41,7 @@ if errorlevel 1 (
   echo   3. Rulează: npm run release:github
   echo.
   echo Sau creezi release-ul manual pe:
-  echo   https://github.com/patrutioan211/TVApp_Electron/releases/new
+  for /f "delims=" %%u in ('node scripts\get-releases-url.js 2^>nul') do echo   %%u
   echo   și uploadezi fișierele din release\
 ) else (
   set /p PUBLISH="Public release pe GitHub acum? (y/N): "

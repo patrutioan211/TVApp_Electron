@@ -132,7 +132,7 @@ Nu e nevoie de variabile de mediu: orice TV poate fi cel care face update-ul; de
 - În rădăcina proiectului există **`version.json`** cu câmpul `version` (ex. `"1.0.0"`).
 - Aplicația face **pull** la fiecare **30 minute** și compară versiunea din `version.json` cu cea la care a pornit.
 - **Dacă versiunea s-a schimbat**:
-  - **Implicit**: aplicația folosește **GitHub Releases** (același repo: `patrutioan211/TVApp_Electron`) – descarcă noul installer de acolo și repornește. **Nu trebuie să setezi `UPDATE_FEED_URL`** pe TV-uri.
+  - **Implicit**: aplicația folosește **GitHub Releases** (repo-ul din `package.json` → `build.publish`) – descarcă noul installer de acolo și repornește. **Nu trebuie să setezi `UPDATE_FEED_URL`** pe TV-uri.
   - Dacă în `.env` e setat **`UPDATE_FEED_URL`**, se folosește acel server (generic) în loc de GitHub.
 
 **Cum folosești update-ul (cu GitHub):**
@@ -141,7 +141,7 @@ Nu e nevoie de variabile de mediu: orice TV poate fi cel care face update-ul; de
 2. Build: `npm run dist:win`. În **`release/`** apar installer-ul (exe) și **`latest.yml`**.
 3. Publicare pe GitHub:
    - **Cu GitHub CLI (gh):** `npm run release:github` (creează release-ul și uploadează exe + latest.yml). Necesită [gh](https://cli.github.com/) instalat și `gh auth login`.
-   - **Manual:** pe [Releases · TVApp_Electron](https://github.com/patrutioan211/TVApp_Electron/releases) → New release → tag `v1.0.1`, uploadezi fișierele din `release/` (exe + `latest.yml`).
+   - **Manual:** pe GitHub → repo-ul tău → Releases → New release → tag `v1.0.1`, uploadezi fișierele din `release/` (exe + `latest.yml`).
 4. Push cod: `git add version.json package.json` → `git commit -m "Release v1.0.1"` → `git push`.
 5. Pe TV-uri: în maxim **30 de minute** fiecare instanță face pull, vede noua versiune, descarcă installer-ul de pe GitHub Releases și se repornește.
 
@@ -227,11 +227,25 @@ npm start
   ```
   Output în `release/` (exe NSIS + `latest.yml`).
 
-- **Update feed**: implicit aplicația verifică **GitHub Releases** (repo `patrutioan211/TVApp_Electron`). Nu e nevoie de `.env` pe TV-uri. După build, publică release-ul cu:
-  ```bash
-  npm run release:github
-  ```
-  (necesită [GitHub CLI](https://cli.github.com/) instalat și autentificat). Sau creezi release-ul manual pe GitHub și uploadezi exe + `latest.yml` din `release/`. Opțional, pentru server propriu: `UPDATE_FEED_URL=https://...` în `.env`.
+- **Update feed**: implicit aplicația verifică **GitHub Releases** (repo-ul din `package.json`). Nu e nevoie de `.env` pe TV-uri. După build, publică release-ul cu `npm run release:github` (necesită [GitHub CLI](https://cli.github.com/)) sau creezi release-ul manual pe GitHub. Opțional: `UPDATE_FEED_URL=https://...` în `.env` pentru server propriu.
+
+---
+
+### 9b. Dacă muți repo-ul (alt repository sau organizație)
+
+Dacă pui acest proiect într-un **alt repo** (alt owner, alt nume, suborganizație etc.), schimbi **doar în `package.json`**:
+
+1. **`repository`** – URL-ul noului repo:
+   ```json
+   "repository": { "type": "git", "url": "https://github.com/NOU_OWNER/NOU_REPO.git" }
+   ```
+
+2. **`build.publish`** – owner și repo pentru GitHub Releases (update-ul aplicației și scriptul `release:github` citesc de aici):
+   ```json
+   "publish": { "provider": "github", "owner": "NOU_OWNER", "repo": "NOU_REPO" }
+   ```
+
+După ce actualizezi aceste două locuri, aplicația (.exe) va verifica update-uri la noul repo, iar `npm run release:github` și `build-release.bat` vor folosi noul URL pentru Releases. **WORKSPACE** este doar un folder din acest repo (conținut per echipă); nu are un „link de Git” separat – tot proiectul e un singur repo, iar `git remote` rămâne cel pe care îl configurezi tu (origin = noul repo, dacă l-ai mutat).
 
 ---
 

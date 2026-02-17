@@ -30,8 +30,18 @@ const canteenMenuPdf = require('./canteenMenuPdfService');
 const { autoUpdater } = require('electron-updater');
 const isDev = process.env.USE_DEV_SERVER === '1';
 const UPDATE_FEED_URL = process.env.UPDATE_FEED_URL || '';
-// GitHub repo pentru update (același repo ca aplicația) – folosit când UPDATE_FEED_URL nu e setat
-const GITHUB_UPDATE_REPO = { owner: 'patrutioan211', repo: 'TVApp_Electron' };
+// GitHub repo pentru update – citit din package.json build.publish (schimbă acolo dacă muți repo-ul)
+function getGitHubUpdateRepo() {
+  try {
+    const pkg = require(path.join(__dirname, '..', 'package.json'));
+    const pub = pkg.build && pkg.build.publish;
+    if (pub && pub.provider === 'github' && pub.owner && pub.repo) {
+      return { owner: pub.owner, repo: pub.repo };
+    }
+  } catch (e) {}
+  return { owner: 'patrutioan211', repo: 'TVApp_Electron' };
+}
+const GITHUB_UPDATE_REPO = getGitHubUpdateRepo();
 const DIST_PATH = path.resolve(__dirname, '..', 'dist');
 
 app.setName('AumovioTVApp');
