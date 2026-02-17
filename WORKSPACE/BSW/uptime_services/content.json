@@ -3,13 +3,13 @@
     {
       "id": "github",
       "name": "GitHub",
-      "statusUrl": "",
+      "statusUrl": "https://github.com/",
       "up": true
     },
     {
       "id": "jira",
       "name": "Jira",
-      "statusUrl": "",
+      "statusUrl": "https://githuddb.com/",
       "up": true
     },
     {
@@ -24,5 +24,6 @@
       "statusUrl": "",
       "up": true
     }
-  ]
+  ],
+  "cooldownSeconds": 120
 }
