@@ -74,7 +74,7 @@
     },
     {
       "duration": 60,
-      "enabled": true,
+      "enabled": false,
       "id": "slide-1770855916866",
       "src": "https://www.aumovio.com",
       "subtitle": "",
