@@ -81,17 +81,6 @@
       "title": "",
       "type": "web_live",
       "webLiveFit": 400
-    },
-    {
-      "duration": 15,
-      "enabled": true,
-      "id": "slide-1771349685198",
-      "posts": [
-        "https://www.linkedin.com/embed/feed/update/urn:li:activity:7428079286021935104"
-      ],
-      "subtitle": "",
-      "title": "",
-      "type": "social_media"
     }
   ]
 }
