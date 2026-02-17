@@ -9,8 +9,10 @@
       "duration": "15 min"
     }
   ],
+  "restaurantLocation": "Sibiu",
   "restaurant": {
-    "name": "La Turn",
-    "tagline": "Restaurant & Terrace — recomandat de echipa"
-  }
+    "name": "Restaurant Lumos - Coffee and brunch",
+    "tagline": "4.6 ⭐ · €€ - expensive"
+  },
+  "restaurantLastUpdated": "2026-02-17"
 }
