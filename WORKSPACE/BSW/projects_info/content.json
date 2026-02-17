@@ -1,11 +1,11 @@
 {
   "projects": [
     {
-      "name": "Alpha",
+      "name": "BMW",
       "start": "2025-01-15",
       "end": "2025-06-30",
       "status": "normal",
-      "icon": ""
+      "icon": "photos/BMW.svg_af1a5800.png"
     },
     {
       "name": "Beta",
@@ -28,5 +28,6 @@
       "status": "normal",
       "icon": ""
     }
-  ]
+  ],
+  "cooldownSeconds": 120
 }
