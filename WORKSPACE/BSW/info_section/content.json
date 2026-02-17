@@ -1,57 +1,8 @@
 {
-  "customerFeedback": [
-    {
-      "client": "AutoTech GmbH",
-      "quote": "Outstanding partnership. The team delivered beyond our expectations and the integration was seamless."
-    },
-    {
-      "client": "Mobility Solutions",
-      "quote": "Professional and responsive. They understood our automotive requirements from day one."
-    },
-    {
-      "client": "Drive Systems Inc.",
-      "quote": "Aumovio's expertise in the sector made the difference. We highly recommend them."
-    }
-  ],
-  "quotesOfDay": [
-    {
-      "quote": "Innovation is not about saying yes to everything. It's about saying no to all but the most crucial features.",
-      "used": true
-    },
-    {
-      "quote": "The best time to plant a tree was 20 years ago. The second best time is now.",
-      "used": true
-    },
-    {
-      "quote": "Quality is not an act, it is a habit.",
-      "used": true
-    }
-  ],
-  "didYouKnow": [
-    {
-      "fact": "The automotive industry is one of the largest R&D investors globally, with billions spent on electrification and autonomous driving each year."
-    },
-    {
-      "fact": "Aumovio was founded with a focus on bringing software excellence to mobility and manufacturing. Our first project was in powertrain calibration."
-    },
-    {
-      "fact": "Modern vehicles contain over 100 million lines of code—more than many operating systems. Software is at the heart of today's cars."
-    }
-  ],
-  "wordOfDay": [
-    {
-      "word": "Calibration",
-      "meaning": "The process of adjusting and configuring a system (e.g. engine, sensor) to meet specified performance criteria."
-    },
-    {
-      "word": "OEM",
-      "meaning": "Original Equipment Manufacturer. A company that produces parts or systems used in another company's end product."
-    },
-    {
-      "word": "ECU",
-      "meaning": "Electronic Control Unit. A microcontroller that manages one or more electrical systems in a vehicle."
-    }
-  ],
+  "customerFeedback": [],
+  "quotesOfDay": [],
+  "didYouKnow": [],
+  "wordOfDay": [],
   "reminderHealthy": [
     {
       "title": "Take a break",
@@ -65,5 +16,6 @@
       "title": "Simple stretching",
       "text": "A few minutes of stretching keeps muscles relaxed and helps prevent tension. Your body will thank you."
     }
-  ]
+  ],
+  "cooldownSeconds": 10
 }
